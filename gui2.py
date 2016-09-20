@@ -103,7 +103,7 @@ class OpenMM(ModelessDialog):
     claim exclusive usage, use ModalDialog.
     """
 
-    buttons = ('Save Input', 'Schedule', 'Run')
+    buttons = ('Save Input', 'Schedule', 'Run', 'Close')
     default = None
     help = 'https://www.insilichem.com'
 
@@ -207,7 +207,7 @@ class OpenMM(ModelessDialog):
             self.canvas, text='Browse', command=lambda: self._browse_directory(self.output))
         # MD reporters button
         self.add_reporters_md = tk.Button(
-            self.canvas, text='+', command= self.mdreport_wind.deiconify())
+            self.canvas, text='+', command= self._fill_mdreport_window)
         # Show all MD reporters selected
         self.show_reporters_md = MoleculeScrolledListBox(
             self.ui_output_frame)
@@ -302,20 +302,6 @@ class OpenMM(ModelessDialog):
             row=0, column=3, rowspan=2, sticky='new', padx=5, pady=5)
 
         #Creating all other windows
-        self.mdreport_wind= tk.Toplevel()
-        self.mdreport_wind.title("MD reports")
-        self.md_frame=tk.Frame(self.canvas)
-        self.ui_md_labelframe = tk.LabelFrame(self.canvas, text='MD Reports Options')
-        self.dcd_check = ttk.Checkbutton(
-            self.canvas, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
-        self.pdb_check = ttk.Checkbutton(
-            self.canvas, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
-        dismiss = tk.Button(mdreport_wind, text="Dismiss", command=mdreport_wind.withdraw())
-        self.mdreport_grid=[[self.dcd_check],
-                            [self.pdb_check],
-                            [dismiss]]
-        self.auto_grid(self.ui_md_labelframe, self.mdreport_grid)
-        mdreport_wind.withdraw()
         
 
 
@@ -333,8 +319,48 @@ class OpenMM(ModelessDialog):
             initialdir='~/')
         var.set(path)
 
+    def _fill_mdreport_window(self):
+        """Opening MD reports options"""
 
+        input_option = {'padx': 10, 'pady': 10}
 
+        #creating window
+        self.w1=tk.Tk()
+        self.w1.title("MD reporters")
+        #creating Frame
+        self.f1=tk.Frame(self.w1)
+        self.f1.pack()
+        #Creating Buttons
+        self.dcd_check = ttk.Checkbutton(
+            self.f1, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='',)
+        self.pdb_check = ttk.Checkbutton(
+            self.f1, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
+        self.close_b1=tk.Button(self.f1, text='close', command= lambda:self.w1.withdraw())
+        #Configure window grid
+        self.dcd_check.grid(row=0, column=0, sticky='ew', **input_option)
+        self.pdb_check.grid(row=1, column=0, sticky='ew', **input_option)
+        self.close_b1.grid(row=2, column=1, sticky='ew', **input_option)
+        #Define Widget Style
+        self._fix_styles(self.dcd_check, self.pdb_check, self.close_b1)
+        #Holding window
+        self.w1.mainloop()
+        """input_option = {'padx': 5, 'pady': 5}
+        #creating toplevel
+        self.rep_window= tk.Toplevel()
+        self.rep_window.title("MD reports")
+ 
+        #create widgets
+        self.dcd_check = ttk.Checkbutton(
+            self.rep_window, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
+        self.pdb_check = ttk.Checkbutton(
+            self.rep_window, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
+        self.dismiss = tk.Button(self.rep_window, text="Dismiss", command=self.rep_window.withdraw())
+
+        #grid widgets
+        self.dcd_check.grid(row=0, column=0, sticky='ew', **input_option)
+        self.pdb_check.grid(row=1, column=0, sticky='ew', **input_option)
+        self.dismiss.grid(row=2, column=0, sticky='ew', **input_option)"""
+        
 
 
     # Script Functions
@@ -387,7 +413,7 @@ class OpenMM(ModelessDialog):
                 item.grid(in_=parent, row=i, column=j, **kwargs)
                 self._fix_styles(item)
 
-    def Close(self):
+    def Close(self,var):
         """
         Default! Triggered action if you click on the Close button
         """
