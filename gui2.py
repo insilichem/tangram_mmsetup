@@ -207,7 +207,7 @@ class OpenMM(ModelessDialog):
             self.canvas, text='Browse', command=lambda: self._browse_directory(self.output))
         # MD reporters button
         self.add_reporters_md = tk.Button(
-            self.canvas, text='+', command= self._fill_mdreport_window)
+            self.canvas, text='+', command= self.mdreport_wind.deiconify())
         # Show all MD reporters selected
         self.show_reporters_md = MoleculeScrolledListBox(
             self.ui_output_frame)
@@ -302,6 +302,20 @@ class OpenMM(ModelessDialog):
             row=0, column=3, rowspan=2, sticky='new', padx=5, pady=5)
 
         #Creating all other windows
+        self.mdreport_wind= tk.Toplevel()
+        self.mdreport_wind.title("MD reports")
+        self.md_frame=tk.Frame(self.canvas)
+        self.ui_md_labelframe = tk.LabelFrame(self.canvas, text='MD Reports Options')
+        self.dcd_check = ttk.Checkbutton(
+            self.canvas, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
+        self.pdb_check = ttk.Checkbutton(
+            self.canvas, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
+        dismiss = tk.Button(mdreport_wind, text="Dismiss", command=mdreport_wind.withdraw())
+        self.mdreport_grid=[[self.dcd_check],
+                            [self.pdb_check],
+                            [dismiss]]
+        self.auto_grid(self.ui_md_labelframe, self.mdreport_grid)
+        mdreport_wind.withdraw()
         
 
 
@@ -319,21 +333,8 @@ class OpenMM(ModelessDialog):
             initialdir='~/')
         var.set(path)
 
-    def _fill_mdreport_window(self):
-        """Opening MD reports options"""
-        mdreport_wind= tk.Toplevel()
-        mdreport_wind.title("MD reports")
-        self.md_frame=tk.Frame(self.canvas)
-        self.ui_md_labelframe = tk.LabelFrame(self.canvas, text='MD Reports Options')
-        self.dcd_check = ttk.Checkbutton(
-            self.canvas, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
-        self.pdb_check = ttk.Checkbutton(
-            self.canvas, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
-        dismiss = tk.Button(mdreport_wind, text="Dismiss", command=mdreport_wind.withdraw())
-        self.mdreport_grid=[[self.dcd_check],
-                            [self.pdb_check],
-                            [dismiss]]
-        auto_grid(self.ui_md_labelframe, self.mdreport_grid)
+
+
 
 
     # Script Functions
