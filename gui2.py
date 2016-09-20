@@ -183,7 +183,7 @@ class OpenMM(ModelessDialog):
         # Fill Input frame
         self.show_models = MoleculeScrolledListBox(self.ui_input_frame)
         self.add_model = tk.Button(self.canvas, text='Set Model')
-        self.sanitize_model = tk.Button(self.canvas, text='Sanitaize')
+        self.sanitize_model = tk.Button(self.canvas, text='Sanitize')
 
         # Configure Input frame
         self.ui_input_frame.columnconfigure(0, weight=1)
@@ -213,7 +213,7 @@ class OpenMM(ModelessDialog):
             self.ui_output_frame)
         # Add Other reporters
         self.add_reporters_others = tk.Button(
-            self.canvas, text='+')
+            self.canvas, text='+', command= self._fill_othereport_window)
         # Show other reporters Selected
         self.show_reporters_others = MoleculeScrolledListBox(
             self.ui_output_frame)
@@ -313,14 +313,23 @@ class OpenMM(ModelessDialog):
 
     # Callbacks
     def _browse_directory(self, var):
-        """Search for the path to save the output"""
+        """
+        Search for the path to save the output
+
+        Parameters
+        ----------
+        var= Interface entry widget where we wish insert the path file.
+
+        """
 
         path = filedialog.askdirectory(
             initialdir='~/')
         var.set(path)
 
     def _fill_mdreport_window(self):
-        """Opening MD reports options"""
+        """
+        Opening MD reports options
+        """
 
         input_option = {'padx': 10, 'pady': 10}
 
@@ -330,6 +339,9 @@ class OpenMM(ModelessDialog):
         #creating Frame
         self.f1=tk.Frame(self.w1)
         self.f1.pack()
+        #LabelFrame
+        self.f1_label=tk.LabelFrame(self.f1, text='MD Reporters')
+        self.f1_label.grid(row=0, column=0, **input_option)
         #Creating Buttons
         self.dcd_check = ttk.Checkbutton(
             self.f1, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='',)
@@ -337,29 +349,57 @@ class OpenMM(ModelessDialog):
             self.f1, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
         self.close_b1=tk.Button(self.f1, text='close', command= lambda:self.w1.withdraw())
         #Configure window grid
-        self.dcd_check.grid(row=0, column=0, sticky='ew', **input_option)
-        self.pdb_check.grid(row=1, column=0, sticky='ew', **input_option)
-        self.close_b1.grid(row=2, column=1, sticky='ew', **input_option)
+        self.dcd_check.grid(in_=self.f1_label, row=0, column=0, sticky='ew', **input_option)
+        self.pdb_check.grid(in_=self.f1_label, row=1, column=0, sticky='ew', **input_option)
+        self.close_b1.grid(in_=self.f1_label, row=2, column=1, sticky='ew', **input_option)
         #Define Widget Style
         self._fix_styles(self.dcd_check, self.pdb_check, self.close_b1)
         #Holding window
         self.w1.mainloop()
-        """input_option = {'padx': 5, 'pady': 5}
-        #creating toplevel
-        self.rep_window= tk.Toplevel()
-        self.rep_window.title("MD reports")
- 
-        #create widgets
-        self.dcd_check = ttk.Checkbutton(
-            self.rep_window, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
-        self.pdb_check = ttk.Checkbutton(
-            self.rep_window, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
-        self.dismiss = tk.Button(self.rep_window, text="Dismiss", command=self.rep_window.withdraw())
 
-        #grid widgets
-        self.dcd_check.grid(row=0, column=0, sticky='ew', **input_option)
-        self.pdb_check.grid(row=1, column=0, sticky='ew', **input_option)
-        self.dismiss.grid(row=2, column=0, sticky='ew', **input_option)"""
+    def _fill_othereport_window(self):
+        """
+        Opening Other reports options as Time, Energy, Temperature...
+        """
+
+        input_option = {'padx': 10, 'pady': 10}
+
+        #creating window
+        self.w2=tk.Tk()
+        self.w2.title("Other reporters")
+        #creating Frame
+        self.f2=tk.Frame(self.w2)
+        self.f2.pack()
+        #LabelFrame
+        self.f2_label=tk.LabelFrame(self.f2, text='Other Reporters')
+        self.f2_label.grid(row=0, column=0, **input_option)
+        #Creating Buttons
+        # Creating Checkbuttons reporters
+        reporters = ['Time', 'Steps', 'Speed', 'Progress',
+                     'Potencial Energy', 'Kinetic Energy', 'Total Energy', 'Temperature',
+                     'Volume', 'Density']
+        for i, item in enumerate(reporters):
+            setattr(self, item, tk.StringVar())
+            #Gride Check Buttons
+            check = self.ui_labels[item] = ttk.Checkbutton(
+                self.f2, text=item, onvalue=item, offvalue='')
+            item=check
+            if i<5:
+                item.grid(
+                    in_=self.f2_label, row=0, column=i, sticky='ew', **input_option)
+            else:
+                item.grid(
+                    in_=self.f2_label, row=1, column=i-5, sticky='ew', **input_option)
+
+
+        #creating close button
+        self.close_b2=tk.Button(self.f2, text='close', command= lambda:self.w2.withdraw())
+        #Configure window grid
+        self.close_b2.grid(in_=self.f2_label, row=2, column=5, sticky='ew', **input_option)
+        #Define Widget Style
+        self._fix_styles(self.close_b2)
+        #Holding window
+        self.w2.mainloop()
         
 
 
@@ -413,7 +453,7 @@ class OpenMM(ModelessDialog):
                 item.grid(in_=parent, row=i, column=j, **kwargs)
                 self._fix_styles(item)
 
-    def Close(self,var):
+    def Close(self):
         """
         Default! Triggered action if you click on the Close button
         """
