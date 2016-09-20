@@ -14,6 +14,7 @@ import ttk
 # Chimera stuff
 import chimera
 import chimera.tkgui
+from chimera.widgets import MoleculeScrolledListBox
 from chimera.baseDialog import ModelessDialog
 # Own
 from core import Controller, Model
@@ -102,7 +103,7 @@ class OpenMM(ModelessDialog):
     claim exclusive usage, use ModalDialog.
     """
 
-    buttons = ('Run', 'Close')
+    buttons = ('Save Input', 'Schedule', 'Run')
     default = None
     help = 'https://www.insilichem.com'
 
@@ -112,18 +113,16 @@ class OpenMM(ModelessDialog):
         self.title = "Plume OpenMM"
         self.entries = ("output", "input", "restart", "top",
                         "cuttoff", "constr", "water",  "forcefield",
-                        "solvent", "integrator", "platform", "precision")
+                        "solvent", "integrator", "platform", "precision", "external_forc", "parametrize_forc")
         self.integrers = ("barostat", "colrate", "tstep", "temp", "nbm", "temp_eq", "simstep",
-            "inter", "simulstep", "dcd", "pdbr",  "tolerance",
-            "minimiz", "max_steps", "pressure", "bar_interval")
+                          "inter", "simulstep", "dcd", "pdbr",  "tolerance",
+                          "minimiz", "max_steps", "pressure", "bar_interval")
 
         # OpenMM variables
         for e in self.entries:
             setattr(self, e, tk.StringVar())
         for i in self.integrers:
             setattr(self, i, tk.IntVar())
-
-
 
         # Misc
         self._basis_set_dialog = None
@@ -163,361 +162,156 @@ class OpenMM(ModelessDialog):
         This is the main part of the interface. With this method you code
         the whole dialog, buttons, textareas and everything.
         """
-        # Input/Output
 
         # Create main window
         self.canvas = tk.Frame(parent)
         self.canvas.pack(expand=True, fill='both')
 
-        # create another frame
-        self.ui_input_frame = tk.LabelFrame(self.canvas, text='Input/Output')
-        self.ui_input_frame.grid(column=1, row=1)
+        # Create all frames
 
-        # insert Input
-        self.input_entry = tk.Entry(
-            self.canvas, width=15, textvariable=self.input)
-        self.input_browse = tk.Button(
-            self.canvas, text="Browse", command=lambda: self._browse_file(self.input, self.top))
+        # Create input frame
+        self.ui_input_frame = tk.LabelFrame(self.canvas, text='Model')
+        # Create output frame
+        self.ui_output_frame = tk.LabelFrame(self.canvas, text='Output')
+        # Create Settings frame
+        self.ui_settings_frame = tk.LabelFrame(self.canvas, text='Settings')
+        # create Steady frame
+        self.ui_steady_frame = tk.LabelFrame(self.canvas, text='Steady')
 
-        # insert Top
-        self.top_entry = tk.Entry(self.canvas, width=15, textvariable=self.top)
+        # Fill frames
 
-        # restart file
-        self.restart_entry = tk.Entry(
-            self.canvas, width=15, textvariable=self.restart)
-        self.restart_browse = tk.Button(
-            self.canvas, text="Browse", command=lambda: self._browse_file(self.restart, None))
+        # Fill Input frame
+        self.show_models = MoleculeScrolledListBox(self.ui_input_frame)
+        self.add_model = tk.Button(self.canvas, text='Set Model')
+        self.sanitize_model = tk.Button(self.canvas, text='Sanitaize')
+
+        # Configure Input frame
+        self.ui_input_frame.columnconfigure(0, weight=1)
+        self.ui_input_frame.rowconfigure(0, weight=1)
+        input_option = {'padx': 5, 'pady': 5}
+        self.show_models.grid(in_=self.ui_input_frame, row=0, column=0,
+                              rowspan=4, columnspan=2, sticky='news', **input_option)
+        self.add_model.grid(
+            in_=self.ui_input_frame, row=5, column=0, sticky='we')
+        self.sanitize_model.grid(
+            in_=self.ui_input_frame, row=5, column=1, sticky='we')
+        self._fix_styles(self.show_models, self.add_model, self.sanitize_model)
+
+        # Fill Output frame
 
         # Output file
         self.output_entry = tk.Entry(
-            self.canvas, width=15, textvariable=self.output)
-
+            self.canvas, textvariable=self.output)
+        # Browse button
         self.output_browse = tk.Button(
-            self.canvas, text="Browse", command=lambda: self._browse_directory(self.output))
+            self.canvas, text='Browse', command=lambda: self._browse_directory(self.output))
+        # MD reporters button
+        self.add_reporters_md = tk.Button(
+            self.canvas, text='+', command= self._fill_mdreport_window)
+        # Show all MD reporters selected
+        self.show_reporters_md = MoleculeScrolledListBox(
+            self.ui_output_frame)
+        # Add Other reporters
+        self.add_reporters_others = tk.Button(
+            self.canvas, text='+')
+        # Show other reporters Selected
+        self.show_reporters_others = MoleculeScrolledListBox(
+            self.ui_output_frame)
 
-        self.model_grid = [['Input File', self.input_entry, self.input_browse],
-                           ['Restart File', self.restart_entry,
-                               self.restart_browse],
-                           ['Save at', self.output_entry, self.output_browse]]
+        # Apply grid to output frame
+        self.output_grid = [['Save at', self.output_entry, self.output_browse],
+                            ['MD\nReporters',  self.show_reporters_md,
+                                self.add_reporters_md],
+                            ['Other\nReporters', self.show_reporters_others, self.add_reporters_others]]
+        self.auto_grid(self.ui_output_frame, self.output_grid)
 
-        self.auto_grid(self.ui_input_frame, self.model_grid)
-
-        # System Basics
-
-        # System paramaters frame
-        self.ui_parameters_frame = tk.LabelFrame(
-            self.canvas, text='System Parameters')
-        self.ui_parameters_frame.grid(column=1, row=2)
-
-        # Molecule colision rate
-        self.colrate_entry = tk.Entry(
-            self.canvas, textvariable=self.colrate)
-
-        # Time per step
-        self.timestep_entry = tk.Entry(
-            self.canvas, textvariable=self.tstep)
-
-
-        # MD temeperature
-        self.temperature_entry = tk.Entry(
-            self.canvas, textvariable=self.temp)
-
-
-        # Barostat
-        self.barostat_check = ttk.Checkbutton(
-            self.canvas, text="", variable=self.barostat, command=self._barostat_show)
-
-        # Apply grid
-        self.model_grid = [['Colision Rate', self.colrate_entry, '', 'Time Step', self.timestep_entry],
-                           ['Temperature', self.temperature_entry, '', 'Barostat', self.barostat_check]]
-
-        self.auto_grid(self.ui_parameters_frame, self.model_grid)
-
-        # SystemBasics
-        self.ui_system_frame = tk.LabelFrame(self.canvas, text='System Basics')
-        self.ui_system_frame.grid(column=2, row=2)
-
-        # System Study
-        self.cutoff_combo = ttk.Combobox(
-            self.canvas, textvariable=self.cuttoff)
-        self.cutoff_combo.config(
-            values=('NoCutoff', 'CutoffNonPeriodic', 'CutoffPeriodic', 'Ewald', 'PME'))
-
-
-        # Constraints
-        self.constr_combo = ttk.Combobox(
-            self.canvas, textvariable=self.constr)
-        self.constr_combo.config(
-            values=('None', 'HBonds', 'HAngles', 'AllBonds'))
-
-
-        # Rigid watter
-        self.water_combo = ttk.Combobox(
-            self.canvas, textvariable=self.water)
-        self.water_combo.config(values=('True', 'False'))
-
-
-        # Non bonded methods
-        self.nbm_entry = tk.Entry(
-            self.canvas, textvariable=self.nbm)
-
-
-        # Apply grid
-        self.model_grid = [['System', self.cutoff_combo, '', 'Non Bonded CuttOff', self.nbm_entry],
-                           ['Constraints', self.constr_combo, '', 'Rigid Water', self.water_combo]]
-
-        self.auto_grid(self.ui_system_frame, self.model_grid)
-
-        # simulation parameters
-
-        # Forcefield
-        self.ui_forcefield_frame = tk.LabelFrame(
-            self.canvas, text='Forcefield Parameters')
-        self.ui_forcefield_frame.grid(column=2, row=1)
-
-        # Forcefield
+        # Fill Settings frame
+        # Forcefield Combobox
         self.force_combo = ttk.Combobox(
             self.canvas, textvariable=self.forcefield)
         self.force_combo.config(values=(
             'amber96', 'amber99sb', 'amber99sbildn', 'amber99sbnmr', 'amber03', 'amber10'))
-
-
-        # Water Model
-        self.wat_mod_combo = ttk.Combobox(
-            self.canvas, textvariable=self.solvent)
-        self.wat_mod_combo.config(
-            values=('spce', 'tip3p', 'tip4pew', 'tip5p', 'amber10_obc'))
-
-
-        # Integrator
+        # Forcefield Buttons to add another stablished forcefield, get an
+        # external one or create your own.
+        self.add_default_forcefield = tk.Button(
+            self.canvas, text='+')
+        self.add_external_forcefield = tk.Button(
+            self.canvas, text='...', command=lambda: self._browse_directory(self.external_forc))
+        self.parametrize_your_forcefield = tk.Button(
+            self.canvas, text='...', command=lambda: self._browse_directory(self.parametrize_forc))
+        # Forcefield entries
+        self.external_forc_entry = tk.Entry(
+            self.canvas, textvariable=self.external_forc)
+        self.parametrize_forc_entry = tk.Entry(
+            self.canvas, textvariable=self.parametrize_forc)
+        # Create Integrator
         self.int_combo = ttk.Combobox(
             self.canvas, textvariable=self.integrator)
         self.int_combo.config(
             values=('Langevin', 'Brownian', 'Verlet', 'VariableVerlet', 'VariableLangevin'))
+        # Create Time Step Entry
+        self.timestep_entry = tk.Entry(
+            self.canvas, textvariable=self.tstep, )
+        # Advanced Options Buttons
+        self.advanced_options = tk.Button(
+            self.canvas, text='Advanced\nOptions')
 
+        # Apply grid to settings frame
+        self.settings_grid = [['Forcefield', self.force_combo, self.add_default_forcefield],
+                              ['External\nForcefield',  self.external_forc_entry,
+                                  self.add_external_forcefield],
+                              ['Parametrized\nForcefield', self.parametrize_forc_entry,
+                                  self.parametrize_your_forcefield],
+                              ['Integrator', self.int_combo],
+                              ['Time Step', self.timestep_entry, self.advanced_options]]
+        self.auto_grid(self.ui_settings_frame, self.settings_grid)
 
-        # Platform
-        self.platform_entry = ttk.Combobox(
-            self.canvas, textvariable=self.platform)
-        self.platform_entry.config(
-            values=('Reference', 'CPU', 'OpenCL', 'CUDA'))
-
-
-        # Precision
-        self.precision_entry = ttk.Combobox(
-            self.canvas, textvariable=self.precision)
-        self.precision_entry.config(
-            values=('single', 'mixed', 'double'))
-
-
-        # Error Tolerance
-        self.tolerance_entry = ttk.Entry(
-            self.canvas, textvariable=self.tolerance)
-
-        # Apply grid
-        self.model_grid = [['Forcefield', self.force_combo, 'Integrator', self.int_combo],
-                           ['', '', '', ''],
-                           ['Water Model', self.wat_mod_combo,
-                               'Platform', self.platform_entry],
-                           ['', '', '', ''],
-                           ['Error Tolerance', self.tolerance_entry, 'Precision', self.precision_entry]]
-
-        self.auto_grid(self.ui_forcefield_frame, self.model_grid)
-
-        self.ui_labels['Precision'].grid_remove()
-        self.precision_entry.grid_remove()
-        
-        self.platform_entry.bind("<<ComboboxSelected>>", self._precision_show)
-
-        self.int_combo.bind("<<ComboboxSelected>>", self._set_parameters)
-
-        # Minimiz
-        self.ui_minimiz_frame = tk.LabelFrame(
-            self.canvas, text='Minimization Parameters')
-        self.ui_minimiz_frame.grid(column=1, row=3)
-
-        # Checkbutton Minimization
-        self.minimiz_check = ttk.Checkbutton(
-            self.canvas, text='yes/no', variable=self.minimiz, command=self._enable_maxsteps)
-
-        # Max minimization Steps
-        self.max_steps_entry = ttk.Entry(
-            self.canvas, textvariable=self.max_steps, state="disabled")
-
-
-        # Setvelocities
-        self.temp_eq_entry = ttk.Entry(
-            self.canvas, textvariable=self.temp_eq)
-
-        # Set temp equilibrium
-        self.eqsteps_entry = ttk.Entry(
-            self.canvas, textvariable=self.simstep)
+        # Filling Steady frame
+        # Up and Down arrow button
+        self.photo_down = tk.PhotoImage(
+            file="/home/daniel/openmmTK/OpenMM/arrow_down.png")
+        self.photo_up = tk.PhotoImage(
+            file="/home/daniel/openmmTK/OpenMM/arrow_up.png")
+        self.movesteady_up = tk.Button(self.canvas, image=self.photo_up)
+        self.movesteady_down = tk.Button(self.canvas, image=self.photo_down)
+        #+ and - button
+        self.add_to_steady = tk.Button(self.canvas, text='+')
+        self.remove_to_steady = tk.Button(self.canvas, text='-')
+        # Scrolled Box
+        self.steady_scrolbox = MoleculeScrolledListBox(self.ui_steady_frame)
 
         # Apply grid
-        self.model_grid = [['Minimization', self.minimiz_check,  'Maximum Steps', self.max_steps_entry],
-                           ['Set Velocities\nto Temperature', self.temp_eq_entry, 'Equilibration Steps', self.eqsteps_entry]]
-        self.auto_grid(self.ui_minimiz_frame, self.model_grid)
+        self.steady_scrolbox.grid(
+            in_=self.ui_steady_frame, row=0, column=0, rowspan=10, columnspan=3, sticky='news', **input_option)
+        self.movesteady_down.grid(
+            in_=self.ui_steady_frame, row=8, column=4,  sticky='news', **input_option)
+        self.movesteady_up.grid(
+            in_=self.ui_steady_frame, row=10, column=4, sticky='news', **input_option)
+        self.add_to_steady.grid(
+            in_=self.ui_steady_frame, row=2, column=4, sticky='news', **input_option)
+        self.remove_to_steady.grid(
+            in_=self.ui_steady_frame, row=6, column=4, sticky='news', **input_option)
 
-        # Reporters
-
-        self.ui_reporters_frame = tk.LabelFrame(self.canvas, text='Reporters')
-        self.ui_reporters_frame.grid(column=2, row=3)
-
-        # Creating Checkbuttons reporters
-        reporters = ['dcd', 'pdb', 'time', 'steps', 'speed', 'progress',
-                     'potencial_energy', 'kinetic_energy', 'total_energy', 'temperature',
-                     'volume', 'density']
-        for r in reporters:
-            setattr(self, r, tk.StringVar())
-            setattr(self, r+"_check", ttk.Checkbutton(self.canvas, text=r))
-
-        # Apply grid
-        self.model_grid = [[self.dcd_check, self.pdb_check, self.time_check, self.temperature_check],
-                           [self.steps_check, self.speed_check,
-                               self.progress_check, self.volume_check],
-                           [self.potencial_energy_check, self.kinetic_energy_check, self.total_energy_check, self.density_check]]
-        self.auto_grid(self.ui_reporters_frame, self.model_grid)
-
-        # Barostat Settings
-
-        # Barostat frame
-        self.ui_barostat_frame = tk.LabelFrame(
-            self.canvas, text='Barostat Settings')
-
-        # Pressure
-        self.pressure_entry = ttk.Entry(
-            self.canvas, textvariable=self.pressure)
-
-
-        # MD steps
-        self.barostat_interval_entry = ttk.Entry(
-            self.canvas, textvariable=self.bar_interval)
-
-
-        # Apply grid
-        self.model_grid = [
-            ['Pressure (atm)', self.pressure_entry,  'Barostat interval', self.barostat_interval_entry]]
-        self.auto_grid(self.ui_barostat_frame, self.model_grid)
-
-        # MD settings
-
-        # MD Frame
-        self.ui_md_frame = tk.LabelFrame(self.canvas, text='MD Final Settings')
-
-        # MD interval reporting
-        self.interval_entry = ttk.Entry(
-            self.canvas, textvariable=self.inter)
-
-
-        # MD steps
-        self.mdsteps_entry = ttk.Entry(
-            self.canvas, textvariable=self.simulstep)
-
-
-        # Apply grid
-        self.model_grid = [['MD steps', self.mdsteps_entry, '',
-                            '',  'Interval steps to report', self.interval_entry]]
-        self.auto_grid(self.ui_md_frame, self.model_grid)
-
-        # Apply grid to frames
-
-        frames = [[self.ui_input_frame, self.ui_forcefield_frame],
-                  [self.ui_system_frame, self.ui_parameters_frame],
-                  [self.ui_minimiz_frame, self.ui_reporters_frame],
-                  [self.ui_barostat_frame, self.ui_md_frame]]
+        # Ordering Frames
+        frames = [[self.ui_input_frame, self.ui_output_frame]]
         self.auto_grid(
             self.canvas, frames, resize_columns=(0, 1), sticky='news')
+        self.ui_settings_frame.grid(
+            row=len(frames), columnspan=2, sticky='ew', padx=5, pady=5)
+        self.ui_steady_frame.grid(
+            row=0, column=3, rowspan=2, sticky='new', padx=5, pady=5)
 
-        self.ui_barostat_frame.grid_remove()
-
-        #Setting Default Variables
-        self.output.set("~/")
-        self.colrate.set(0.002)
-        self.tstep.set(1)
-        self.temp.set(300)
-        self.cutoff_combo.current(0)
-        self.constr_combo.current(0)
-        self.water_combo.current(1)
-        self.nbm.set(1)
-        self.force_combo.current(0)
-        self.wat_mod_combo.current(1)
-        self.int_combo.current(0)
-        self.platform_entry.current(0)
-        self.precision_entry.current(0)
-        self.max_steps.set(1000)
-        self.pressure.set(1)
-        self.bar_interval.set(30)
-        self.inter.set(100)
-        self.simulstep.set(1000)
-
-
-
-
-    #Callbacks
-    def _set_parameters(self,event):
-    
-        """Enable or Disable different settings depending on the integrator user choice"""   
-
-
-        #Enabling all variables 
-        self.tolerance_entry.configure(state='normal')
-        self.colrate_entry.configure(state='normal')
-        self.temperature_entry.configure(state='normal')
-        self.barostat_check.configure(state='normal')
-        self.timestep_entry.configure(state='normal')
+        #Creating all other windows
         
 
-        #Disabled parameters dependin on the users integrator choice
-        if self.int_combo.get() == 'Langevin':
-            self.tolerance_entry.configure(state='disabled')
-        if self.int_combo.get() == 'Brownian':
-            self.tolerance_entry.configure(state='disabled')
-        elif self.int_combo.get() == 'Verlet':
-            self.tolerance_entry.configure(state='disabled')
-            self.colrate_entry.configure(state='disabled')
-            self.temperature_entry.configure(state='disabled')
-            self.barostat_check.configure(state='disabled')
-        elif self.int_combo.get() == 'VariableLangevin':
-            self.timestep_entry.configure(state='disabled')
-        elif self.int_combo.get() == 'VariableVerlet':
-            self.colrate_entry.configure(state='disabled')
-            self.temperature_entry.configure(state='disabled')
-            
-
-    def _enable_maxsteps(self):
-        """Enable and Disable minimization settings"""
-        if self.minimiz.get() is 1:
-            self.max_steps_entry.configure(state='normal')
-        else:
-            self.max_steps_entry.configure(state='disabled')
-
-    def _barostat_show(self):
-        """Show or Hide the barostat interface depending whether or not the barostat Checkbutton is pressed"""
-        if self.barostat.get() is 1:
-            self.ui_barostat_frame.grid()
-        else:
-            self.ui_barostat_frame.grid_remove()
 
 
 
-    def _browse_file(self, var_1, var_2):
-        """Browse file and reset frame if an Amber input is found"""
 
-        path = filedialog.askopenfilename(initialdir='~/', filetypes=(
-            ('PDB Files', '.pdb'), ('AMBER Files', '.inpcrd'), ('All', '*')))
-        var_1.set(path)
-        file_path, file_extension = os.path.splitext(path)
-        if file_extension == ".inpcrd":
-            top_entry = tk.Entry(self.canvas, textvariable=var_2)
 
-            self.model_grid = [['Input File', self.input_entry, self.input_browse],
-                               ['Amber Top File', self.top_entry, ''],
-                               ['Restart File', self.restart_entry,
-                                   self.restart_browse],
-                               ['Save at', self.output_entry, self.output_browse]]
-            self.auto_grid(self.ui_input_frame, self.model_grid)
-            var_2.set(file_path + ".prmtop")
 
+
+    # Callbacks
     def _browse_directory(self, var):
         """Search for the path to save the output"""
 
@@ -525,26 +319,24 @@ class OpenMM(ModelessDialog):
             initialdir='~/')
         var.set(path)
 
-    def _precision_show(self, event):
-        """Showe or Hide precision button depending on the platform user choice"""
-
-        if self.platform_entry.get() == 'CUDA':
-
-            self.ui_labels['Precision'].grid()
-            self.precision_entry.grid()
-
-        elif self.platform_entry.get() == 'OpenCL':
-            self.ui_labels['Precision'].grid()
-            self.precision_entry.grid()
-
-        else:
-            self.ui_labels['Precision'].grid_remove()
-            self.precision_entry.grid_remove()
-
-
+    def _fill_mdreport_window(self):
+        """Opening MD reports options"""
+        mdreport_wind= tk.Toplevel()
+        mdreport_wind.title("MD reports")
+        self.md_frame=tk.Frame(self.canvas)
+        self.ui_md_labelframe = tk.LabelFrame(self.canvas, text='MD Reports Options')
+        self.dcd_check = ttk.Checkbutton(
+            self.canvas, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
+        self.pdb_check = ttk.Checkbutton(
+            self.canvas, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
+        dismiss = tk.Button(mdreport_wind, text="Dismiss", command=mdreport_wind.withdraw())
+        self.mdreport_grid=[[self.dcd_check],
+                            [self.pdb_check],
+                            [dismiss]]
+        auto_grid(self.ui_md_labelframe, self.mdreport_grid)
 
 
-    #Script Functions
+    # Script Functions
     def auto_grid(self, parent, grid, resize_columns=(1,), label_sep=':', **options):
         """
         Auto grid an ordered matrix of Tkinter widgets.
