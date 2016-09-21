@@ -31,11 +31,17 @@ STYLES = {
         'background': 'white',
         'borderwidth': 1,
         'highlightthickness': 0,
-        'insertwidth': 1,
+        'width': 10,
+    },
+    tk.Listbox: {
+        'height': '5',
+        'width': '5',
+
     },
     tk.Button: {
         'borderwidth': 1,
         'highlightthickness': 0,
+        
     },
     tk.Checkbutton: {
         'highlightbackground': chimera.tkgui.app.cget('bg'),
@@ -110,19 +116,29 @@ class OpenMM(ModelessDialog):
     def __init__(self, *args, **kwarg):
 
         # GUI init
+
         self.title = "Plume OpenMM"
         self.entries = ("output", "input", "restart", "top",
                         "cuttoff", "constr", "water",  "forcefield",
-                        "solvent", "integrator", "platform", "precision", "external_forc", "parametrize_forc")
+                        "solvent", "integrator", "platform", "precision", "external_forc", "parametrize_forc",
+                         "dcd", "pdbr","other_reporters","md_reporters", "stage","number_stage")
+        self.reporters = ['Time', 'Steps', 'Speed', 'Progress',
+                     'Potencial Energy', 'Kinetic Energy', 'Total Energy', 'Temperature',
+                     'Volume', 'Density']
         self.integrers = ("barostat", "colrate", "tstep", "temp", "nbm", "temp_eq", "simstep",
-                          "inter", "simulstep", "dcd", "pdbr",  "tolerance",
+                          "inter", "simulstep",  "tolerance",
                           "minimiz", "max_steps", "pressure", "bar_interval")
+
 
         # OpenMM variables
         for e in self.entries:
             setattr(self, e, tk.StringVar())
+        for r in self.reporters:
+            setattr(self, r, tk.StringVar())
         for i in self.integrers:
             setattr(self, i, tk.IntVar())
+
+
 
         # Misc
         self._basis_set_dialog = None
@@ -190,11 +206,11 @@ class OpenMM(ModelessDialog):
         self.ui_input_frame.rowconfigure(0, weight=1)
         input_option = {'padx': 5, 'pady': 5}
         self.show_models.grid(in_=self.ui_input_frame, row=0, column=0,
-                              rowspan=4, columnspan=2, sticky='news', **input_option)
+                              rowspan=2, columnspan=2, sticky='news', **input_option)
         self.add_model.grid(
-            in_=self.ui_input_frame, row=5, column=0, sticky='we')
+            in_=self.ui_input_frame, row=2, column=0, sticky='we')
         self.sanitize_model.grid(
-            in_=self.ui_input_frame, row=5, column=1, sticky='we')
+            in_=self.ui_input_frame, row=2, column=1, sticky='we')
         self._fix_styles(self.show_models, self.add_model, self.sanitize_model)
 
         # Fill Output frame
@@ -204,19 +220,19 @@ class OpenMM(ModelessDialog):
             self.canvas, textvariable=self.output)
         # Browse button
         self.output_browse = tk.Button(
-            self.canvas, text='Browse', command=lambda: self._browse_directory(self.output))
+            self.canvas, text='...', command=lambda: self._browse_directory(self.output))
         # MD reporters button
         self.add_reporters_md = tk.Button(
-            self.canvas, text='+', command= self._fill_mdreport_window)
+            self.canvas, text='+', command= self._fill_w1)
         # Show all MD reporters selected
-        self.show_reporters_md = MoleculeScrolledListBox(
-            self.ui_output_frame)
+        self.show_reporters_md = tk.Listbox(
+            self.ui_output_frame, listvariable= self.md_reporters)
         # Add Other reporters
         self.add_reporters_others = tk.Button(
-            self.canvas, text='+', command= self._fill_othereport_window)
+            self.canvas, text='+', command= self._fill_w2)
         # Show other reporters Selected
-        self.show_reporters_others = MoleculeScrolledListBox(
-            self.ui_output_frame)
+        self.show_reporters_others = tk.Listbox(
+            self.ui_output_frame, listvariable= self.other_reporters)
 
         # Apply grid to output frame
         self.output_grid = [['Save at', self.output_entry, self.output_browse],
@@ -236,9 +252,9 @@ class OpenMM(ModelessDialog):
         self.add_default_forcefield = tk.Button(
             self.canvas, text='+')
         self.add_external_forcefield = tk.Button(
-            self.canvas, text='...', command=lambda: self._browse_directory(self.external_forc))
+            self.canvas, text='...', command=lambda: self._browse_file(self.external_forc))
         self.parametrize_your_forcefield = tk.Button(
-            self.canvas, text='...', command=lambda: self._browse_directory(self.parametrize_forc))
+            self.canvas, text='...',)
         # Forcefield entries
         self.external_forc_entry = tk.Entry(
             self.canvas, textvariable=self.external_forc)
@@ -254,7 +270,7 @@ class OpenMM(ModelessDialog):
             self.canvas, textvariable=self.tstep, )
         # Advanced Options Buttons
         self.advanced_options = tk.Button(
-            self.canvas, text='Advanced\nOptions')
+            self.canvas, text='Opt')
 
         # Apply grid to settings frame
         self.settings_grid = [['Forcefield', self.force_combo, self.add_default_forcefield],
@@ -275,10 +291,10 @@ class OpenMM(ModelessDialog):
         self.movesteady_up = tk.Button(self.canvas, image=self.photo_up)
         self.movesteady_down = tk.Button(self.canvas, image=self.photo_down)
         #+ and - button
-        self.add_to_steady = tk.Button(self.canvas, text='+')
+        self.add_to_steady = tk.Button(self.canvas, text='+', command= self._fill_w3)
         self.remove_to_steady = tk.Button(self.canvas, text='-')
         # Scrolled Box
-        self.steady_scrolbox = MoleculeScrolledListBox(self.ui_steady_frame)
+        self.steady_scrolbox = tk.Listbox(self.ui_steady_frame, height=27)
 
         # Apply grid
         self.steady_scrolbox.grid(
@@ -286,11 +302,11 @@ class OpenMM(ModelessDialog):
         self.movesteady_down.grid(
             in_=self.ui_steady_frame, row=8, column=4,  sticky='news', **input_option)
         self.movesteady_up.grid(
-            in_=self.ui_steady_frame, row=10, column=4, sticky='news', **input_option)
+            in_=self.ui_steady_frame, row=6, column=4, sticky='news', **input_option)
         self.add_to_steady.grid(
             in_=self.ui_steady_frame, row=2, column=4, sticky='news', **input_option)
         self.remove_to_steady.grid(
-            in_=self.ui_steady_frame, row=6, column=4, sticky='news', **input_option)
+            in_=self.ui_steady_frame, row=4, column=4, sticky='news', **input_option)
 
         # Ordering Frames
         frames = [[self.ui_input_frame, self.ui_output_frame]]
@@ -301,7 +317,9 @@ class OpenMM(ModelessDialog):
         self.ui_steady_frame.grid(
             row=0, column=3, rowspan=2, sticky='new', padx=5, pady=5)
 
-        #Creating all other windows
+
+
+
         
 
 
@@ -312,6 +330,17 @@ class OpenMM(ModelessDialog):
 
 
     # Callbacks
+    def _browse_file(self, var_1):
+        """
+        Browse file path
+         """
+
+        path = filedialog.askopenfilename(initialdir='~/', filetypes=(
+            ('Frcmod', '.frmod'), ('All', '*')))
+        var_1.set(path)
+        file_path, file_extension = os.path.splitext(path)
+        
+
     def _browse_directory(self, var):
         """
         Search for the path to save the output
@@ -326,7 +355,7 @@ class OpenMM(ModelessDialog):
             initialdir='~/')
         var.set(path)
 
-    def _fill_mdreport_window(self):
+    def _fill_w1(self):
         """
         Opening MD reports options
         """
@@ -334,7 +363,7 @@ class OpenMM(ModelessDialog):
         input_option = {'padx': 10, 'pady': 10}
 
         #creating window
-        self.w1=tk.Tk()
+        self.w1=tk.Toplevel()
         self.w1.title("MD reporters")
         #creating Frame
         self.f1=tk.Frame(self.w1)
@@ -344,10 +373,11 @@ class OpenMM(ModelessDialog):
         self.f1_label.grid(row=0, column=0, **input_option)
         #Creating Buttons
         self.dcd_check = ttk.Checkbutton(
-            self.f1, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='',)
+            self.f1, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
         self.pdb_check = ttk.Checkbutton(
             self.f1, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
-        self.close_b1=tk.Button(self.f1, text='close', command= lambda:self.w1.withdraw())
+        self.close_b1=tk.Button(self.f1, text='close', command= self._close_w1)
+
         #Configure window grid
         self.dcd_check.grid(in_=self.f1_label, row=0, column=0, sticky='ew', **input_option)
         self.pdb_check.grid(in_=self.f1_label, row=1, column=0, sticky='ew', **input_option)
@@ -356,8 +386,13 @@ class OpenMM(ModelessDialog):
         self._fix_styles(self.dcd_check, self.pdb_check, self.close_b1)
         #Holding window
         self.w1.mainloop()
+    def _close_w1(self):
+        self.md_reporters.set((self.dcd.get(), self.pdbr.get()))
+        self.w1.withdraw()
+        
 
-    def _fill_othereport_window(self):
+
+    def _fill_w2(self):
         """
         Opening Other reports options as Time, Energy, Temperature...
         """
@@ -365,7 +400,7 @@ class OpenMM(ModelessDialog):
         input_option = {'padx': 10, 'pady': 10}
 
         #creating window
-        self.w2=tk.Tk()
+        self.w2=tk.Toplevel()
         self.w2.title("Other reporters")
         #creating Frame
         self.f2=tk.Frame(self.w2)
@@ -375,14 +410,12 @@ class OpenMM(ModelessDialog):
         self.f2_label.grid(row=0, column=0, **input_option)
         #Creating Buttons
         # Creating Checkbuttons reporters
-        reporters = ['Time', 'Steps', 'Speed', 'Progress',
-                     'Potencial Energy', 'Kinetic Energy', 'Total Energy', 'Temperature',
-                     'Volume', 'Density']
-        for i, item in enumerate(reporters):
-            setattr(self, item, tk.StringVar())
+
+
+        for i, item in enumerate(self.reporters):
             #Gride Check Buttons
             check = self.ui_labels[item] = ttk.Checkbutton(
-                self.f2, text=item, onvalue=item, offvalue='')
+                self.f2, text=item, variable= getattr(self, item),  onvalue=item, offvalue='')
             item=check
             if i<5:
                 item.grid(
@@ -393,13 +426,75 @@ class OpenMM(ModelessDialog):
 
 
         #creating close button
-        self.close_b2=tk.Button(self.f2, text='close', command= lambda:self.w2.withdraw())
+        self.close_b2=tk.Button(
+            self.f2, text='close', command= self._close_w2)
         #Configure window grid
         self.close_b2.grid(in_=self.f2_label, row=2, column=5, sticky='ew', **input_option)
         #Define Widget Style
         self._fix_styles(self.close_b2)
         #Holding window
         self.w2.mainloop()
+    def _close_w2(self):
+    
+        self.other_reporters.set((
+            self.Time.get(), self.Steps.get(), self.Speed.get(), self.Progress.get(),
+            self.__dict__['Potencial Energy'].get(), self.__dict__['Kinetic Energy'].get(), self.__dict__['Total Energy'].get(),
+            self.Temperature.get(), self.Volume.get(),self.Density.get()))
+        self.w2.withdraw()
+
+
+    def _fill_w3(self):
+        """
+        Window where we create different phases of our MD
+        """
+
+        input_option = {'padx': 10, 'pady': 10}
+
+        #creating window
+        self.w3=tk.Toplevel()
+        self.w3.title("Md steady create")
+
+        #Creating tabs
+
+        note = ttk.Notebook(self.w3)
+        self.tab_1=tk.Frame(note)
+        self.tab_1.pack()
+        self.tab_2=tk.Frame(note)
+        self.tab_3=tk.Frame(note)
+        self.tab_4=tk.Frame(note)
+        self.tab_5=tk.Frame(note)
+        note.add(self.tab_1, text="Stage", state="normal")
+        note.add(self.tab_2, text="Temperature & Pressure", state="normal")
+        note.add(self.tab_3, text="Constrains", state="normal")
+        note.add(self.tab_4, text="Minimization", state="normal")
+        note.add(self.tab_5, text="MD Final Settings", state="normal")
+        note.pack()
+
+
+        #Creating Buttons frame 
+        self.stage_name_entry = tk.Entry(self.tab_1, width= 15, textvariable=self.stage)
+        self.stage_number_entry = tk.Entry(self.tab_1, width= 15, textvariable=self.number_stage)
+        self.stage_name_label = tk.Label(self.tab_1, text='Name Stage')
+        self.stage_number_label = tk.Label(self.tab_1, text='Number Stage')
+        self.close_b3=tk.Button(
+            self.tab_1, text='close', command= self._close_w3)
+
+        self.stage_name_entry.grid(row=0, column=3, sticky='ew', **input_option)
+        self.stage_number_entry.grid(row=1, column=3, sticky='ew', **input_option)
+        self.stage_name_label.grid(row=1, column=2, sticky='ew', **input_option)
+        self.stage_number_label.grid(row=0, column=2, sticky='ew', **input_option)
+        self.close_b3.grid(row=0, column=4, rowspan=2, columnspan=2, sticky='ew', **input_option)
+
+
+
+        #creating close button
+        # Creating Checkbuttons reporters"""
+        
+        self.w3.mainloop()
+    
+    def _close_w3(self):
+        self.w3.withdraw()
+
         
 
 
