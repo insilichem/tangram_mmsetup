@@ -127,7 +127,8 @@ class OpenMM(ModelessDialog):
                      'Volume', 'Density']
         self.integrers = ("barostat", "colrate", "tstep", "temp", "nbm", "temp_eq", "simstep",
                           "inter", "simulstep",  "tolerance",
-                          "minimiz", "max_steps", "pressure", "bar_interval")
+                          "minimiz", "max_steps", "pressure", "bar_interval", "stage_pressure_steps",
+                           "stage_pressure", "stage_barostat","stage_temp")
 
 
         # OpenMM variables
@@ -236,9 +237,9 @@ class OpenMM(ModelessDialog):
 
         # Apply grid to output frame
         self.output_grid = [['Save at', self.output_entry, self.output_browse],
-                            ['MD\nReporters',  self.show_reporters_md,
+                            ['Trajectory\nReporters',  self.show_reporters_md,
                                 self.add_reporters_md],
-                            ['Other\nReporters', self.show_reporters_others, self.add_reporters_others]]
+                            ['MD\nReporters', self.show_reporters_others, self.add_reporters_others]]
         self.auto_grid(self.ui_output_frame, self.output_grid)
 
         # Fill Settings frame
@@ -458,8 +459,8 @@ class OpenMM(ModelessDialog):
 
         note = ttk.Notebook(self.w3)
         self.tab_1=tk.Frame(note)
-        self.tab_1.pack()
         self.tab_2=tk.Frame(note)
+        self.tab_2.pack()
         self.tab_3=tk.Frame(note)
         self.tab_4=tk.Frame(note)
         self.tab_5=tk.Frame(note)
@@ -470,35 +471,75 @@ class OpenMM(ModelessDialog):
         note.add(self.tab_5, text="MD Final Settings", state="normal")
         note.pack()
 
-
-        #Creating Buttons frame 
-        self.stage_name_entry = tk.Entry(self.tab_1, width= 15, textvariable=self.stage)
-        self.stage_number_entry = tk.Entry(self.tab_1, width= 15, textvariable=self.number_stage)
-        self.stage_name_label = tk.Label(self.tab_1, text='Name Stage')
-        self.stage_number_label = tk.Label(self.tab_1, text='Number Stage')
+        #Tab1
+        #Creating Buttons  
+        stage_name_entry = tk.Entry(
+            self.tab_1, width= 20, textvariable=self.stage)
+        stage_number_entry = tk.Entry(
+            self.tab_1, width=20, textvariable=self.number_stage)
         self.close_b3=tk.Button(
             self.tab_1, text='close', command= self._close_w3)
+        #Apply grid
+        self.stage_grid=[['Stage Number', stage_number_entry],
+                        ['Stage Name', stage_name_entry],
+                        ['',self.close_b3]]
+        self.auto_grid(self.tab_1, self.stage_grid)
 
-        self.stage_name_entry.grid(row=0, column=3, sticky='ew', **input_option)
-        self.stage_number_entry.grid(row=1, column=3, sticky='ew', **input_option)
-        self.stage_name_label.grid(row=1, column=2, sticky='ew', **input_option)
-        self.stage_number_label.grid(row=0, column=2, sticky='ew', **input_option)
-        self.close_b3.grid(row=0, column=4, rowspan=2, columnspan=2, sticky='ew', **input_option)
+        #Tab2
+        #Creating Buttons
+        self.stage_temp_lframe = tk.LabelFrame(self.tab_2, text='Temperature')
+        self.stage_pressure_lframe = tk.LabelFrame(self.tab_2, text='Pressure')
+        frames=[[self.stage_temp_lframe, self.stage_pressure_lframe]]
+        self.auto_grid(self.tab_2, frames)
 
 
 
-        #creating close button
-        # Creating Checkbuttons reporters"""
+        self.stage_temp_entry = tk.Entry(
+            self.tab_2, textvariable=self.stage_temp)
+        self.temp_grid = [['Stage Temperature', self.stage_temp_entry]]
+        self.auto_grid(self.stage_temp_lframe, self.temp_grid)
+
+
+        self.stage_barostat_check = ttk.Checkbutton(
+            self.tab_2, text="Barostat", variable=self.stage_barostat,
+            command=self._bar_settings)
+        self.stage_pressure_Entry = tk.Entry(
+            self.tab_2, state= 'disabled', textvariable=self.stage_pressure)
+        self.stage_barostat_steps_Entry = tk.Entry(
+            self.tab_2, state= 'disabled', textvariable=self.stage_pressure_steps)
+
+        self.pres_grid = [[self.stage_barostat_check,''],
+                         ['Pressure', self.stage_pressure_Entry],
+                         ['Barostat Every', self.stage_barostat_steps_Entry]]
+        self.auto_grid(self.stage_pressure_lframe, self.pres_grid)
         
         self.w3.mainloop()
+
+
+
+    def _bar_settings(self):
+        """
+        enable/disable barostat settings
+        """
+
+        if self.stage_barostat.get() is 1:
+            self.stage_pressure_Entry.configure(state='normal')
+            self.stage_barostat_steps_Entry.configure(state='normal')
+        else:
+            self.stage_pressure_Entry.configure(state='disabled')
+            self.stage_barostat_steps_Entry.configure(state='disabled')
+    
     
     def _close_w3(self):
+        """
+        Close window w3
+        """
+
         self.w3.withdraw()
 
-        
 
+# Script Functions
 
-    # Script Functions
     def auto_grid(self, parent, grid, resize_columns=(1,), label_sep=':', **options):
         """
         Auto grid an ordered matrix of Tkinter widgets.
