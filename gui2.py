@@ -121,14 +121,16 @@ class OpenMM(ModelessDialog):
         self.entries = ("output", "input", "restart", "top",
                         "cuttoff", "constr", "water",  "forcefield",
                         "solvent", "integrator", "platform", "precision", "external_forc", "parametrize_forc",
-                         "dcd", "pdbr","other_reporters","md_reporters", "stage","number_stage")
+                         "dcd", "pdbr","other_reporters","md_reporters", "stage_name", "stage_constrprot",
+                         "stage_constrback", "stage_constrother","stage_steps")
         self.reporters = ['Time', 'Steps', 'Speed', 'Progress',
                      'Potencial Energy', 'Kinetic Energy', 'Total Energy', 'Temperature',
                      'Volume', 'Density']
         self.integrers = ("barostat", "colrate", "tstep", "temp", "nbm", "temp_eq", "simstep",
                           "inter", "simulstep",  "tolerance",
                           "minimiz", "max_steps", "pressure", "bar_interval", "stage_pressure_steps",
-                           "stage_pressure", "stage_barostat","stage_temp")
+                           "stage_pressure", "stage_barostat","stage_temp","stage_minimiz_maxsteps",
+                           "stage_minimiz_tolerance","stage_minimiz","stage_dcd")
 
 
         # OpenMM variables
@@ -227,13 +229,13 @@ class OpenMM(ModelessDialog):
             self.canvas, text='+', command= self._fill_w1)
         # Show all MD reporters selected
         self.show_reporters_md = tk.Listbox(
-            self.ui_output_frame, listvariable= self.md_reporters)
+            self.ui_output_frame)
         # Add Other reporters
         self.add_reporters_others = tk.Button(
             self.canvas, text='+', command= self._fill_w2)
         # Show other reporters Selected
         self.show_reporters_others = tk.Listbox(
-            self.ui_output_frame, listvariable= self.other_reporters)
+            self.ui_output_frame)
 
         # Apply grid to output frame
         self.output_grid = [['Save at', self.output_entry, self.output_browse],
@@ -289,15 +291,15 @@ class OpenMM(ModelessDialog):
             file="/home/daniel/openmmTK/OpenMM/arrow_down.png")
         self.photo_up = tk.PhotoImage(
             file="/home/daniel/openmmTK/OpenMM/arrow_up.png")
-        self.movesteady_up = tk.Button(self.canvas, image=self.photo_up)
+        self.movesteady_up = tk.Button(self.canvas, image=self.photo_up, command= self._move_stage_up)
         self.movesteady_down = tk.Button(self.canvas, image=self.photo_down)
         #+ and - button
         self.add_to_steady = tk.Button(self.canvas, text='+', command= self._fill_w3)
-        self.remove_to_steady = tk.Button(self.canvas, text='-')
+        self.remove_from_steady = tk.Button(self.canvas, text='-', command= self._remove_stage)
         # Scrolled Box
         self.steady_scrolbox = tk.Listbox(self.ui_steady_frame, height=27)
 
-        # Apply grid
+        # Apply grid to stage scrolbox widgets
         self.steady_scrolbox.grid(
             in_=self.ui_steady_frame, row=0, column=0, rowspan=10, columnspan=3, sticky='news', **input_option)
         self.movesteady_down.grid(
@@ -306,7 +308,7 @@ class OpenMM(ModelessDialog):
             in_=self.ui_steady_frame, row=6, column=4, sticky='news', **input_option)
         self.add_to_steady.grid(
             in_=self.ui_steady_frame, row=2, column=4, sticky='news', **input_option)
-        self.remove_to_steady.grid(
+        self.remove_from_steady.grid(
             in_=self.ui_steady_frame, row=4, column=4, sticky='news', **input_option)
 
         # Ordering Frames
@@ -388,7 +390,14 @@ class OpenMM(ModelessDialog):
         #Holding window
         self.w1.mainloop()
     def _close_w1(self):
-        self.md_reporters.set((self.dcd.get(), self.pdbr.get()))
+        """
+        Close window while pass reporters to the listbox
+        """
+        self.show_reporters_md.delete(0,'end')
+        if self.dcd.get() == self.dcd_check['onvalue']:
+            self.show_reporters_md.insert('end', self.dcd.get())
+        if self.pdbr.get() == self.pdb_check['onvalue']:
+            self.show_reporters_md.insert('end', self.pdbr.get())
         self.w1.withdraw()
         
 
@@ -428,19 +437,21 @@ class OpenMM(ModelessDialog):
 
         #creating close button
         self.close_b2=tk.Button(
-            self.f2, text='close', command= self._close_w2)
+            self.f2, text='close', command= lambda: self._close_w2('show_reporters_others'))
         #Configure window grid
         self.close_b2.grid(in_=self.f2_label, row=2, column=5, sticky='ew', **input_option)
         #Define Widget Style
         self._fix_styles(self.close_b2)
         #Holding window
         self.w2.mainloop()
-    def _close_w2(self):
-    
-        self.other_reporters.set((
-            self.Time.get(), self.Steps.get(), self.Speed.get(), self.Progress.get(),
-            self.__dict__['Potencial Energy'].get(), self.__dict__['Kinetic Energy'].get(), self.__dict__['Total Energy'].get(),
-            self.Temperature.get(), self.Volume.get(),self.Density.get()))
+    def _close_w2(self, listbox):
+        """
+        Close window while pass reporters to the listbox
+        """
+        getattr(self, listbox).delete(0,'end')
+        for item in self.reporters:
+            if getattr(self, item).get() == item:
+                getattr(self, listbox).insert('end', getattr(self, item).get())   
         self.w2.withdraw()
 
 
@@ -453,37 +464,42 @@ class OpenMM(ModelessDialog):
 
         #creating window
         self.w3=tk.Toplevel()
+        self.stages=[]
         self.w3.title("Md steady create")
 
         #Creating tabs
 
         note = ttk.Notebook(self.w3)
+        """for i in range(1,6):
+            setattr(self, 'tab_'+ str(i), tk.Frame(note))
+            getattr(self, 'tab_'+ str(i)).pack()"""
         self.tab_1=tk.Frame(note)
+        self.tab_1.pack()
         self.tab_2=tk.Frame(note)
         self.tab_2.pack()
         self.tab_3=tk.Frame(note)
+        self.tab_3.pack()
         self.tab_4=tk.Frame(note)
-        self.tab_5=tk.Frame(note)
+        self.tab_4.pack()
         note.add(self.tab_1, text="Stage", state="normal")
         note.add(self.tab_2, text="Temperature & Pressure", state="normal")
         note.add(self.tab_3, text="Constrains", state="normal")
-        note.add(self.tab_4, text="Minimization", state="normal")
-        note.add(self.tab_5, text="MD Final Settings", state="normal")
+        note.add(self.tab_4, text="MD Final Settings", state="normal")
         note.pack()
 
         #Tab1
-        #Creating Buttons  
+        #Creating Buttons
+        self.stage_name_lframe = tk.LabelFrame(self.tab_1, text='Stage Main Settings')
+        self.stage_name_lframe.pack(expand=True, fill='both')
+
         stage_name_entry = tk.Entry(
-            self.tab_1, width= 20, textvariable=self.stage)
-        stage_number_entry = tk.Entry(
-            self.tab_1, width=20, textvariable=self.number_stage)
+            self.tab_1, width= 20, textvariable=self.stage_name)
         self.close_b3=tk.Button(
             self.tab_1, text='close', command= self._close_w3)
         #Apply grid
-        self.stage_grid=[['Stage Number', stage_number_entry],
-                        ['Stage Name', stage_name_entry],
-                        ['',self.close_b3]]
-        self.auto_grid(self.tab_1, self.stage_grid)
+        self.stage_grid=[['Stage Name', stage_name_entry],
+                        ['', self.close_b3]]
+        self.auto_grid(self.stage_name_lframe, self.stage_grid)
 
         #Tab2
         #Creating Buttons
@@ -513,6 +529,67 @@ class OpenMM(ModelessDialog):
                          ['Barostat Every', self.stage_barostat_steps_Entry]]
         self.auto_grid(self.stage_pressure_lframe, self.pres_grid)
         
+
+
+        #Tab3
+
+        self.stage_constr_lframe = tk.LabelFrame(self.tab_3, text='Constrained Atoms')
+        self.stage_minim_lframe = tk.LabelFrame(self.tab_3, text='Minimize:')
+        frames= [[self.stage_constr_lframe,self.stage_minim_lframe]]
+        self.auto_grid(self.tab_3, frames)
+
+        #Fill constr lframe
+        self.stage_constrprot_check = ttk.Checkbutton(
+        self.tab_3, text='Protein', variable=self.stage_constrprot)
+        self.stage_constrback_check = ttk.Checkbutton(
+            self.tab_3, text='Bakcbone', variable=self.stage_constrback)
+        self.stage_constrother_Entry = tk.Entry(
+            self.tab_3, width=20, textvariable=self.stage_constrother)
+        self.constr_grid = [[self.stage_constrprot_check],
+                         [self.stage_constrback_check],
+                         ['Other', self.stage_constrother_Entry]]
+        self.auto_grid(self.stage_constr_lframe, self.constr_grid)
+
+
+        #Fill minimiz lframe
+        self.stage_minimiz_check = ttk.Checkbutton(
+            self.tab_3, text="Minimization", variable=self.stage_minimiz, command= self._minimiz_settings)
+        self.stage_minimiz_max_steps_Entry = tk.Entry(
+            self.tab_3, state= 'disabled', textvariable=self.stage_minimiz_maxsteps)
+        self.stage_minimiz_tolerance_Entry = tk.Entry(
+            self.tab_3, state= 'disabled', textvariable=self.stage_minimiz_tolerance)
+
+        self.minimiz_grid=[[self.stage_minimiz_check,''],
+                           ['Max Steps', self.stage_minimiz_max_steps_Entry],
+                           ['Tolerance', self.stage_minimiz_tolerance_Entry]]
+        self.auto_grid(self.stage_minim_lframe, self.minimiz_grid)
+
+
+        #Tab 4
+        self.stage_mdset_lframe = tk.LabelFrame(self.tab_4)
+        self.stage_mdset_lframe.pack(expand=True, fill='both')
+
+        #Fill MD Settings lframe
+        self.stage_steps_Entry = tk.Entry(
+            self.tab_4, textvariable=self.stage_steps)
+        self.stage_dcd_check = tk.Checkbutton(
+            self.tab_4, text= 'DCD trajectory reports', variable= self.stage_dcd)
+
+        #Apply grid
+        self.stage_md=[['MD Steps', self.stage_steps_Entry],
+                        ['', self.stage_dcd_check]]
+        self.auto_grid(self.stage_mdset_lframe, self.stage_md)
+
+
+
+
+
+
+
+
+
+
+
         self.w3.mainloop()
 
 
@@ -528,14 +605,46 @@ class OpenMM(ModelessDialog):
         else:
             self.stage_pressure_Entry.configure(state='disabled')
             self.stage_barostat_steps_Entry.configure(state='disabled')
+
+    def _minimiz_settings(self):
+        """
+        enable/disable Minimization settings
+        """
+
+        if self.stage_minimiz.get() is 1:
+            self.stage_minimiz_max_steps_Entry.configure(state='normal')
+            self.stage_minimiz_tolerance_Entry.configure(state='normal')
+        else:
+            self.stage_minimiz_max_steps_Entry.configure(state='disabled')
+            self.stage_minimiz_tolerance_Entry.configure(state='disabled')
     
     
     def _close_w3(self):
         """
         Close window w3
         """
-
+        self.steady_scrolbox.insert('end', self.stage_name.get())
         self.w3.withdraw()
+
+    def _remove_stage(self):
+        self.steady_scrolbox.delete(self.steady_scrolbox.curselection())
+
+    def _move_stage_up(self):
+        
+        
+        i=(self.steady_scrolbox.curselection())
+        j=int(i[0])        
+        if j is not 0:
+            move_item=self.steady_scrolbox.get(j-1)
+            self.steady_scrolbox.delete(j-1)
+            self.steady_scrolbox.insert(j, move_item)
+
+            
+            
+
+
+
+        
 
 
 # Script Functions
