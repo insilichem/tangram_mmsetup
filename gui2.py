@@ -7,8 +7,6 @@ from __future__ import print_function, division
 import os.path
 import Tkinter as tk
 import tkFileDialog as filedialog
-import Pmw
-from multiprocessing import cpu_count
 import ttk
 
 # Chimera stuff
@@ -16,6 +14,7 @@ import chimera
 import chimera.tkgui
 from chimera.widgets import MoleculeScrolledListBox
 from chimera.baseDialog import ModelessDialog
+from chimera import runCommand as rc
 # Own
 from core import Controller, Model
 
@@ -41,48 +40,16 @@ STYLES = {
     tk.Button: {
         'borderwidth': 1,
         'highlightthickness': 0,
-        
+
     },
     tk.Checkbutton: {
         'highlightbackground': chimera.tkgui.app.cget('bg'),
         'activebackground': chimera.tkgui.app.cget('bg'),
-    },
-    Pmw.OptionMenu: {
-        'menubutton_borderwidth': 1,
-        'menu_relief': 'flat',
-        'menu_activeborderwidth': 0,
-        'menu_activebackground': '#DDD',
-        'menu_borderwidth': 1,
-        'menu_background': 'white',
-        'hull_borderwidth': 0,
-    },
-    Pmw.ComboBox: {
-        'entry_borderwidth': 1,
-        'entry_highlightthickness': 0,
-        'entry_background': 'white',
-        'arrowbutton_borderwidth': 1,
-        'arrowbutton_relief': 'flat',
-        'arrowbutton_highlightthickness': 0,
-        'listbox_borderwidth': 1,
-        'listbox_background': 'white',
-        'listbox_relief': 'ridge',
-        'listbox_highlightthickness': 0,
-        'scrolledlist_hull_borderwidth': 0
-    },
-    Pmw.ScrolledListBox: {
-        'listbox_borderwidth': 1,
-        'listbox_background': 'white',
-        'listbox_relief': 'ridge',
-        'listbox_highlightthickness': 0,
-        'listbox_selectbackground': '#DDD',
-        'listbox_selectborderwidth': 0
-    }
+    }   
 }
 
 # This is a Chimera thing. Do it, and deal with it.
 ui = None
-
-
 def showUI(callback=None, *args, **kwargs):
     """
     Requested by Chimera way-of-doing-things
@@ -116,24 +83,26 @@ class OpenMM(ModelessDialog):
     def __init__(self, *args, **kwarg):
 
         # GUI init
-
         self.title = "Plume OpenMM"
-        self.entries = ("output", "input", "restart", "top",
-                        "cuttoff", "constr", "water",  "forcefield",
+        
+        # OpenMM variables
+        self.entries = ("output", "input", "restart", "top", "cuttoff", "constr", "water",  "forcefield",
                         "solvent", "integrator", "platform", "precision", "external_forc", "parametrize_forc",
-                         "dcd", "pdbr","other_reporters","md_reporters", "stage_name", "stage_constrprot",
-                         "stage_constrback", "stage_constrother","stage_steps")
-        self.reporters = ['Time', 'Steps', 'Speed', 'Progress',
-                     'Potencial Energy', 'Kinetic Energy', 'Total Energy', 'Temperature',
-                     'Volume', 'Density']
+                        "dcd", "pdbr", "other_reporters", "md_reporters", "stage_name", "stage_constrprot",
+                        "stage_constrback", "stage_constrother", "advopt_nbm", "advopt_constr", "advopt_rigwat",
+                        "advopt_hardware", "advopt_precision", "input_vel", "input_box", "input_charmm",
+                        "input_checkpoint")
+
+        self.reporters = ['Time', 'Steps', 'Speed', 'Progress', 'Potencial Energy', 'Kinetic Energy',
+                          'Total Energy', 'Temperature', 'Volume', 'Density']
         self.integrers = ("barostat", "colrate", "tstep", "temp", "nbm", "temp_eq", "simstep",
                           "inter", "simulstep",  "tolerance",
                           "minimiz", "max_steps", "pressure", "bar_interval", "stage_pressure_steps",
-                           "stage_pressure", "stage_barostat","stage_temp","stage_minimiz_maxsteps",
-                           "stage_minimiz_tolerance","stage_minimiz","stage_dcd")
+                          "stage_pressure", "stage_barostat", "stage_temp", "stage_minimiz_maxsteps",
+                          "stage_minimiz_tolerance", "stage_minimiz", "stage_dcd", "stage_reportevery",
+                          "stage_steps", "advopt_temp", "advopt_pressure", "advopt_pressure_steps",
+                          "advopt_friction", "advopt_barostat", "advopt_cutoff", "advopt_edwalderr")
 
-
-        # OpenMM variables
         for e in self.entries:
             setattr(self, e, tk.StringVar())
         for r in self.reporters:
@@ -141,11 +110,10 @@ class OpenMM(ModelessDialog):
         for i in self.integrers:
             setattr(self, i, tk.IntVar())
 
-
-
         # Misc
         self._basis_set_dialog = None
         self.ui_labels = {}
+        self.input_option = {'padx': 10, 'pady': 10}
 
         # Fire up
         ModelessDialog.__init__(self)
@@ -188,56 +156,68 @@ class OpenMM(ModelessDialog):
 
         # Create all frames
 
-        # Create input frame
-        self.ui_input_frame = tk.LabelFrame(self.canvas, text='Model')
-        # Create output frame
+        self.ui_input_frame = tk.LabelFrame(self.canvas, text='Model Topology')
         self.ui_output_frame = tk.LabelFrame(self.canvas, text='Output')
-        # Create Settings frame
         self.ui_settings_frame = tk.LabelFrame(self.canvas, text='Settings')
-        # create Steady frame
         self.ui_steady_frame = tk.LabelFrame(self.canvas, text='Steady')
 
         # Fill frames
-
         # Fill Input frame
-        self.show_models = MoleculeScrolledListBox(self.ui_input_frame)
-        self.add_model = tk.Button(self.canvas, text='Set Model')
-        self.sanitize_model = tk.Button(self.canvas, text='Sanitize')
+        # Creating tabs
+        self.note = ttk.Notebook(self.ui_input_frame)
+        self.tab_1 = tk.Frame(self.note)
+        self.tab_2 = tk.Frame(self.note)
+        self.tab_3 = tk.Frame(self.note)
+        self.note.add(self.tab_1, text="PDB", state="normal")
+        self.note.add(self.tab_2, text="AMBER", state="normal")
+        self.note.add(self.tab_3, text="PSF", state="normal")        
+        self.note.pack(expand=True, fill='both')
 
-        # Configure Input frame
-        self.ui_input_frame.columnconfigure(0, weight=1)
-        self.ui_input_frame.rowconfigure(0, weight=1)
-        input_option = {'padx': 5, 'pady': 5}
-        self.show_models.grid(in_=self.ui_input_frame, row=0, column=0,
-                              rowspan=2, columnspan=2, sticky='news', **input_option)
-        self.add_model.grid(
-            in_=self.ui_input_frame, row=2, column=0, sticky='we')
-        self.sanitize_model.grid(
-            in_=self.ui_input_frame, row=2, column=1, sticky='we')
-        self._fix_styles(self.show_models, self.add_model, self.sanitize_model)
+
+        #Fill input frame
+        #Create and grid tab 1, 2 and 3
+        self.top_add = tk.Button(self.ui_input_frame, text='Set Model', command=self._include_amber_model)
+        self.add_model = tk.Button(self.ui_input_frame, text='Set Model', command=self._include_pdb_model)
+        self.psf_add = tk.Button(self.ui_input_frame, text='Set Model', command=self._include_psf_model)
+
+        for i in range(1,4):
+            setattr(self, 'show_model_' + str(i), tk.Listbox(self.ui_input_frame))
+            setattr(self, 'options_model_' + str(i), 
+                tk.Button(self.ui_input_frame, text="Advanced\nOptions", command=self._fill_w5))    
+
+            setattr(self, 'sanitize_model_'+str(i), tk.Button(self.ui_input_frame, text="Sanitize\nModel"))
+
+            getattr(self, 'show_model_' + str(i)).grid(in_=getattr(self,'tab_' + str(i)), row=0, column=0,
+                                  rowspan=2, columnspan=2, sticky='news')
+            getattr(self, 'options_model_' + str(i)).grid(in_=getattr(self,'tab_' + str(i)),
+                                row=2, column=0, sticky='we')
+            getattr(self, 'sanitize_model_' + str(i)).grid(in_=getattr(self,'tab_' + str(i)),
+                                     row=2, column=1, sticky='we')
+            self._fix_styles(getattr(self, 'show_model_' + str(i)),
+                             getattr(self, 'options_model_' + str(i)),
+                             getattr(self, 'sanitize_model_' + str(i)))
+
+        self.top_add.grid(in_=self.tab_2, row=3, column=0, columnspan=2, sticky='we', **self.input_option)
+        self.add_model.grid(in_=self.tab_1, row=3, column=0, columnspan=2, sticky='we', **self.input_option)
+        self.psf_add.grid(in_=self.tab_3, row=3, column=0, columnspan=2, sticky='we', **self.input_option)
+
+
+
+
 
         # Fill Output frame
-
-        # Output file
-        self.output_entry = tk.Entry(
-            self.canvas, textvariable=self.output)
-        # Browse button
+        self.output_entry = tk.Entry(self.canvas, textvariable=self.output)
         self.output_browse = tk.Button(
             self.canvas, text='...', command=lambda: self._browse_directory(self.output))
-        # MD reporters button
         self.add_reporters_md = tk.Button(
-            self.canvas, text='+', command= self._fill_w1)
-        # Show all MD reporters selected
+            self.canvas, text='+', command=self._fill_w1)
         self.show_reporters_md = tk.Listbox(
             self.ui_output_frame)
-        # Add Other reporters
         self.add_reporters_others = tk.Button(
-            self.canvas, text='+', command= self._fill_w2)
-        # Show other reporters Selected
+            self.canvas, text='+', command=self._fill_w2)
         self.show_reporters_others = tk.Listbox(
             self.ui_output_frame)
 
-        # Apply grid to output frame
         self.output_grid = [['Save at', self.output_entry, self.output_browse],
                             ['Trajectory\nReporters',  self.show_reporters_md,
                                 self.add_reporters_md],
@@ -245,37 +225,29 @@ class OpenMM(ModelessDialog):
         self.auto_grid(self.ui_output_frame, self.output_grid)
 
         # Fill Settings frame
-        # Forcefield Combobox
         self.force_combo = ttk.Combobox(
             self.canvas, textvariable=self.forcefield)
         self.force_combo.config(values=(
             'amber96', 'amber99sb', 'amber99sbildn', 'amber99sbnmr', 'amber03', 'amber10'))
-        # Forcefield Buttons to add another stablished forcefield, get an
-        # external one or create your own.
         self.add_default_forcefield = tk.Button(
             self.canvas, text='+')
         self.add_external_forcefield = tk.Button(
-            self.canvas, text='...', command=lambda: self._browse_file(self.external_forc))
+            self.canvas, text='...', command=lambda: self._browse_file(self.external_forc,'frcmod'))
         self.parametrize_your_forcefield = tk.Button(
-            self.canvas, text='...',)
-        # Forcefield entries
+            self.canvas, text='...', command=lambda: self._browse_file(self.external_forc_entry,'par'))
         self.external_forc_entry = tk.Entry(
             self.canvas, textvariable=self.external_forc)
         self.parametrize_forc_entry = tk.Entry(
             self.canvas, textvariable=self.parametrize_forc)
-        # Create Integrator
         self.int_combo = ttk.Combobox(
             self.canvas, textvariable=self.integrator)
         self.int_combo.config(
             values=('Langevin', 'Brownian', 'Verlet', 'VariableVerlet', 'VariableLangevin'))
-        # Create Time Step Entry
         self.timestep_entry = tk.Entry(
             self.canvas, textvariable=self.tstep, )
-        # Advanced Options Buttons
         self.advanced_options = tk.Button(
-            self.canvas, text='Opt')
+            self.canvas, text='Opt', command=self._fill_w4)
 
-        # Apply grid to settings frame
         self.settings_grid = [['Forcefield', self.force_combo, self.add_default_forcefield],
                               ['External\nForcefield',  self.external_forc_entry,
                                   self.add_external_forcefield],
@@ -285,33 +257,33 @@ class OpenMM(ModelessDialog):
                               ['Time Step', self.timestep_entry, self.advanced_options]]
         self.auto_grid(self.ui_settings_frame, self.settings_grid)
 
-        # Filling Steady frame
-        # Up and Down arrow button
+        # Fill Steady frame
         self.photo_down = tk.PhotoImage(
             file="/home/daniel/openmmTK/OpenMM/arrow_down.png")
         self.photo_up = tk.PhotoImage(
             file="/home/daniel/openmmTK/OpenMM/arrow_up.png")
-        self.movesteady_up = tk.Button(self.canvas, image=self.photo_up, command= self._move_stage_up)
-        self.movesteady_down = tk.Button(self.canvas, image=self.photo_down)
-        #+ and - button
-        self.add_to_steady = tk.Button(self.canvas, text='+', command= self._fill_w3)
-        self.remove_from_steady = tk.Button(self.canvas, text='-', command= self._remove_stage)
-        # Scrolled Box
+        self.movesteady_up = tk.Button(
+            self.canvas, image=self.photo_up, command=self._move_stage_up)
+        self.movesteady_down = tk.Button(
+            self.canvas, image=self.photo_down, command=self._move_stage_down)
+        self.add_to_steady = tk.Button(
+            self.canvas, text='+', command=self._fill_w3)
+        self.remove_from_steady = tk.Button(
+            self.canvas, text='-', command=self._remove_stage)
         self.steady_scrolbox = tk.Listbox(self.ui_steady_frame, height=27)
 
-        # Apply grid to stage scrolbox widgets
         self.steady_scrolbox.grid(
-            in_=self.ui_steady_frame, row=0, column=0, rowspan=10, columnspan=3, sticky='news', **input_option)
+            in_=self.ui_steady_frame, row=0, column=0, rowspan=10, columnspan=3, sticky='news', **self.input_option)
         self.movesteady_down.grid(
-            in_=self.ui_steady_frame, row=8, column=4,  sticky='news', **input_option)
+            in_=self.ui_steady_frame, row=8, column=4,  sticky='news', **self.input_option)
         self.movesteady_up.grid(
-            in_=self.ui_steady_frame, row=6, column=4, sticky='news', **input_option)
+            in_=self.ui_steady_frame, row=6, column=4, sticky='news', **self.input_option)
         self.add_to_steady.grid(
-            in_=self.ui_steady_frame, row=2, column=4, sticky='news', **input_option)
+            in_=self.ui_steady_frame, row=2, column=4, sticky='news', **self.input_option)
         self.remove_from_steady.grid(
-            in_=self.ui_steady_frame, row=4, column=4, sticky='news', **input_option)
+            in_=self.ui_steady_frame, row=4, column=4, sticky='news', **self.input_option)
 
-        # Ordering Frames
+        # Grid Frames
         frames = [[self.ui_input_frame, self.ui_output_frame]]
         self.auto_grid(
             self.canvas, frames, resize_columns=(0, 1), sticky='news')
@@ -320,29 +292,30 @@ class OpenMM(ModelessDialog):
         self.ui_steady_frame.grid(
             row=0, column=3, rowspan=2, sticky='new', padx=5, pady=5)
 
+        #Events
+        self.note.bind("<ButtonRelease-1>", self._forc_param)
 
 
-
-        
-
-
-
-
-
-
-
+        #Initialize Variables
+        self.force_combo.current(0)
+        self.int_combo.current(0)
+        self.tstep.set(1000)
+        self.output.set(os.path.expanduser('~'))
 
     # Callbacks
-    def _browse_file(self, var_1):
+    def _browse_file(self, var_1, file_type):
         """
         Browse file path
-         """
-
-        path = filedialog.askopenfilename(initialdir='~/', filetypes=(
-            ('Frcmod', '.frmod'), ('All', '*')))
-        var_1.set(path)
-        file_path, file_extension = os.path.splitext(path)
-        
+        """
+        try:
+            path = filedialog.askopenfilename(initialdir='~/', filetypes=(
+            (file_type, '.' + file_type), ('All', '*')))
+        except:
+            raise UserError("No path with this name")
+        try:
+            var_1.set(path)
+        except:
+            pass
 
     def _browse_directory(self, var):
         """
@@ -358,48 +331,185 @@ class OpenMM(ModelessDialog):
             initialdir='~/')
         var.set(path)
 
+
+    def _include_pdb_model(self):
+        """
+        Open and include PDB model in the listbox
+        selecting the last added item and Opening
+        all possible conformations
+        """
+        path = filedialog.askopenfilename(initialdir='~/', filetypes=(
+            ('PDB', '.pdb'), ('All', '*')))
+
+        file_name = os.path.basename(path)
+        if len(file_name) != 0:
+            self.show_model_1.insert('end',file_name)
+            self.show_model_1.select_clear(0, 'end')
+            self.show_model_1.select_set(self.show_model_1.size()-1)
+        
+            self.split_conformations(path)
+
+    def _include_amber_model(self):
+        """
+        Open and include prmtop and inpcrd model in
+        the listbox selecting the last added item
+        and Opening all possible conformations
+        """
+
+        pathtop = filedialog.askopenfilename(initialdir='~/', filetypes=(
+            ('Amber Top', '.prmtop'), ('All', '*')))
+        if len(pathtop) != 0:
+            path_name = os.path.splitext(pathtop)[0]
+            file_name = os.path.basename(path_name)
+            top_name = file_name + '.prmtop'
+            crd_name = file_name + '.inpcrd'
+            self.show_model_2.insert('end', top_name)
+            self.show_model_2.insert('end', crd_name)
+
+    def _include_psf_model(self):
+        path = filedialog.askopenfilename(initialdir='~/', filetypes=(
+            ('PSF File', '.psf'), ('All', '*')))
+        if len(path) != 0:
+            path_name = os.path.splitext(pathtop)[0]
+            file_name = os.path.basename(path_name)
+            self.show_model_3.insert('end', file_name)
+
+
+
+
+
+
+
+
+    def split_conformations(self,path):
+        """
+        Split a multi-pdb in different single pdbs
+        with all possible conformation coming from the
+        original file
+        """
+        chimera.openModels.open(path)
+        path_name = os.path.splitext(path)[0]
+        file_name = os.path.basename(path_name)
+        try:
+
+                rc('split')
+                modelnum=0
+                while True:
+                        modelnum+=0.1
+                        try:
+                                rc('write #'  + str(modelnum) + ' ' +  os.path.expanduser("~") + '/' + file_name + str(modelnum)+'.pdb')
+                                self.show_model_1.insert('end', file_name + str(modelnum) +'.pdb')
+
+                        except:
+                                break
+        except:
+            pass
+        rc('close all')
+
+    def _forc_param(self,event):
+        """
+        Enable or Disable forcefield option
+        depending on user input choice
+        """
+        if self.note.index(self.note.select()) == 0:
+            self.external_forc_entry.configure(state='normal')
+            self.force_combo.configure(state='normal')
+            self.parametrize_forc_entry.configure(state='disabled')
+        elif self.note.index(self.note.select()) == 1:
+            self.external_forc_entry.configure(state='disabled')
+            self.force_combo.configure(state='disabled')
+            self.parametrize_forc_entry.configure(state='disabled')
+        elif self.note.index(self.note.select()) == 2:
+            self.external_forc_entry.configure(state='disabled')
+            self.force_combo.configure(state='disabled')
+            self.parametrize_forc_entry.configure(state='normal')
+
+
+
+    def _remove_stage(self):
+        """
+        Remove the selected stage from the stage listbox
+        """
+        try:
+            self.steady_scrolbox.delete(self.steady_scrolbox.curselection())
+        except:
+            pass
+
+    def _move_stage_up(self):
+        """
+        Move one position upwards the selected stage
+        """
+
+        try:
+
+            i = (self.steady_scrolbox.curselection())
+            j = int(i[0])
+            if j is not 0:
+                move_item = self.steady_scrolbox.get(j-1)
+                self.steady_scrolbox.delete(j-1)
+                self.steady_scrolbox.insert(j, move_item)
+        except:
+            pass
+
+    def _move_stage_down(self):
+        """
+        Move one position downwards the selected stage_save_Button
+        """
+
+        try:
+            i = (self.steady_scrolbox.curselection())
+            j = int(i[0])
+            if j is not ((len(self.steady_scrolbox.get(0, 'end'))-1)):
+                move_item = self.steady_scrolbox.get(j+1)
+                self.steady_scrolbox.delete(j+1)
+                self.steady_scrolbox.insert(j, move_item)
+        except:
+            pass
+
     def _fill_w1(self):
         """
         Opening MD reports options
         """
 
-        input_option = {'padx': 10, 'pady': 10}
 
-        #creating window
-        self.w1=tk.Toplevel()
+        # creating window
+        self.w1 = tk.Toplevel()
+        self.Center('w1')
         self.w1.title("MD reporters")
-        #creating Frame
-        self.f1=tk.Frame(self.w1)
+
+        self.f1 = tk.Frame(self.w1)
         self.f1.pack()
-        #LabelFrame
-        self.f1_label=tk.LabelFrame(self.f1, text='MD Reporters')
-        self.f1_label.grid(row=0, column=0, **input_option)
-        #Creating Buttons
+
+        self.f1_label = tk.LabelFrame(self.f1, text='MD Reporters')
+        self.f1_label.grid(row=0, column=0, **self.input_option)
+
         self.dcd_check = ttk.Checkbutton(
             self.f1, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
         self.pdb_check = ttk.Checkbutton(
             self.f1, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
-        self.close_b1=tk.Button(self.f1, text='close', command= self._close_w1)
+        self.close_b1 = tk.Button(
+            self.f1, text='close', command=self._close_w1)
 
-        #Configure window grid
-        self.dcd_check.grid(in_=self.f1_label, row=0, column=0, sticky='ew', **input_option)
-        self.pdb_check.grid(in_=self.f1_label, row=1, column=0, sticky='ew', **input_option)
-        self.close_b1.grid(in_=self.f1_label, row=2, column=1, sticky='ew', **input_option)
-        #Define Widget Style
+        self.dcd_check.grid(
+            in_=self.f1_label, row=0, column=0, sticky='ew', **self.input_option)
+        self.pdb_check.grid(
+            in_=self.f1_label, row=1, column=0, sticky='ew', **self.input_option)
+        self.close_b1.grid(
+            in_=self.f1_label, row=2, column=1, sticky='ew', **self.input_option)
+
         self._fix_styles(self.dcd_check, self.pdb_check, self.close_b1)
-        #Holding window
         self.w1.mainloop()
+
     def _close_w1(self):
         """
         Close window while pass reporters to the listbox
         """
-        self.show_reporters_md.delete(0,'end')
+        self.show_reporters_md.delete(0, 'end')
         if self.dcd.get() == self.dcd_check['onvalue']:
             self.show_reporters_md.insert('end', self.dcd.get())
         if self.pdbr.get() == self.pdb_check['onvalue']:
             self.show_reporters_md.insert('end', self.pdbr.get())
         self.w1.withdraw()
-        
 
 
     def _fill_w2(self):
@@ -407,244 +517,376 @@ class OpenMM(ModelessDialog):
         Opening Other reports options as Time, Energy, Temperature...
         """
 
-        input_option = {'padx': 10, 'pady': 10}
 
-        #creating window
-        self.w2=tk.Toplevel()
+        # Create window
+        self.w2 = tk.Toplevel()
+        self.Center('w2')
         self.w2.title("Other reporters")
-        #creating Frame
-        self.f2=tk.Frame(self.w2)
+
+        #Create frame and lframe
+        self.f2 = tk.Frame(self.w2)
         self.f2.pack()
-        #LabelFrame
-        self.f2_label=tk.LabelFrame(self.f2, text='Other Reporters')
-        self.f2_label.grid(row=0, column=0, **input_option)
-        #Creating Buttons
-        # Creating Checkbuttons reporters
-
-
+        self.f2_label = tk.LabelFrame(self.f2, text='Other Reporters')
+        self.f2_label.grid(row=0, column=0, **self.input_option)
+        
+        # Create Checkbuttons reporters and place them
         for i, item in enumerate(self.reporters):
-            #Gride Check Buttons
             check = self.ui_labels[item] = ttk.Checkbutton(
-                self.f2, text=item, variable= getattr(self, item),  onvalue=item, offvalue='')
-            item=check
-            if i<5:
+                self.f2, text=item, variable=getattr(self, item),  onvalue=item, offvalue='')
+            item = check
+            if i < 5:
                 item.grid(
-                    in_=self.f2_label, row=0, column=i, sticky='ew', **input_option)
+                    in_=self.f2_label, row=0, column=i, sticky='ew', **self.input_option)
             else:
                 item.grid(
-                    in_=self.f2_label, row=1, column=i-5, sticky='ew', **input_option)
+                    in_=self.f2_label, row=1, column=i-5, sticky='ew', **self.input_option)
 
-
-        #creating close button
-        self.close_b2=tk.Button(
-            self.f2, text='close', command= lambda: self._close_w2('show_reporters_others'))
-        #Configure window grid
-        self.close_b2.grid(in_=self.f2_label, row=2, column=5, sticky='ew', **input_option)
-        #Define Widget Style
+        self.close_b2 = tk.Button(
+            self.f2, text='close', command=lambda: self._close_w2('show_reporters_others'))
+        self.close_b2.grid(
+            in_=self.f2_label, row=2, column=5, sticky='ew', **self.input_option)
         self._fix_styles(self.close_b2)
-        #Holding window
+        
         self.w2.mainloop()
+
     def _close_w2(self, listbox):
         """
         Close window while pass reporters to the listbox
         """
-        getattr(self, listbox).delete(0,'end')
+        getattr(self, listbox).delete(0, 'end')
         for item in self.reporters:
             if getattr(self, item).get() == item:
-                getattr(self, listbox).insert('end', getattr(self, item).get())   
+                getattr(self, listbox).insert('end', getattr(self, item).get())
         self.w2.withdraw()
-
 
     def _fill_w3(self):
         """
-        Window where we create different phases of our MD
+        Create widgets on TopLevel Window to set different
+        stages inside our Molecular Dinamic Simulation
         """
 
-        input_option = {'padx': 10, 'pady': 10}
+        # creating window
+        self.w3 = tk.Toplevel()
+        self.Center('w3')
+        self.w3.title("MD Stages")
 
-        #creating window
-        self.w3=tk.Toplevel()
-        self.stages=[]
-        self.w3.title("Md steady create")
-
-        #Creating tabs
-
+        # Creating tabs
         note = ttk.Notebook(self.w3)
-        """for i in range(1,6):
-            setattr(self, 'tab_'+ str(i), tk.Frame(note))
-            getattr(self, 'tab_'+ str(i)).pack()"""
-        self.tab_1=tk.Frame(note)
-        self.tab_1.pack()
-        self.tab_2=tk.Frame(note)
-        self.tab_2.pack()
-        self.tab_3=tk.Frame(note)
-        self.tab_3.pack()
-        self.tab_4=tk.Frame(note)
-        self.tab_4.pack()
+        self.tab_1 = tk.Frame(note)
+        self.tab_2 = tk.Frame(note)
+        self.tab_3 = tk.Frame(note)
+        self.tab_4 = tk.Frame(note)
         note.add(self.tab_1, text="Stage", state="normal")
         note.add(self.tab_2, text="Temperature & Pressure", state="normal")
-        note.add(self.tab_3, text="Constrains", state="normal")
+        note.add(self.tab_3, text="Constrains & Minimization", state="normal")
         note.add(self.tab_4, text="MD Final Settings", state="normal")
         note.pack()
 
-        #Tab1
-        #Creating Buttons
-        self.stage_name_lframe = tk.LabelFrame(self.tab_1, text='Stage Main Settings')
+        # Tab1
+        self.stage_name_lframe = tk.LabelFrame(
+            self.tab_1, text='Stage Main Settings')
         self.stage_name_lframe.pack(expand=True, fill='both')
 
-        stage_name_entry = tk.Entry(
-            self.tab_1, width= 20, textvariable=self.stage_name)
-        self.close_b3=tk.Button(
-            self.tab_1, text='close', command= self._close_w3)
-        #Apply grid
-        self.stage_grid=[['Stage Name', stage_name_entry],
-                        ['', self.close_b3]]
+        self.stage_name_Entry = tk.Entry(
+            self.tab_1, width=20, textvariable=self.stage_name)
+        self.close_b3 = tk.Button(
+            self.tab_1, text='Close', command=self._close_w3)
+        self.stage_save_Button = tk.Button(
+            self.tab_1, text='Save and Close', command=self._save_w3)
+
+        self.stage_grid = [['Stage Name', self.stage_name_Entry],
+                           ['', self.close_b3, self.stage_save_Button]]
         self.auto_grid(self.stage_name_lframe, self.stage_grid)
 
-        #Tab2
-        #Creating Buttons
+        # Tab2
         self.stage_temp_lframe = tk.LabelFrame(self.tab_2, text='Temperature')
         self.stage_pressure_lframe = tk.LabelFrame(self.tab_2, text='Pressure')
-        frames=[[self.stage_temp_lframe, self.stage_pressure_lframe]]
+        frames = [[self.stage_temp_lframe, self.stage_pressure_lframe]]
         self.auto_grid(self.tab_2, frames)
 
-
-
-        self.stage_temp_entry = tk.Entry(
+        self.stage_temp_Entry = tk.Entry(
             self.tab_2, textvariable=self.stage_temp)
-        self.temp_grid = [['Stage Temperature', self.stage_temp_entry]]
+        self.temp_grid = [['Stage Temperature', self.stage_temp_Entry]]
         self.auto_grid(self.stage_temp_lframe, self.temp_grid)
 
-
+        self.stage_pressure_Entry = tk.Entry(
+            self.tab_2, state='disabled', textvariable=self.stage_pressure)
+        self.stage_barostat_steps_Entry = tk.Entry(
+            self.tab_2, state='disabled', textvariable=self.stage_pressure_steps)
         self.stage_barostat_check = ttk.Checkbutton(
             self.tab_2, text="Barostat", variable=self.stage_barostat,
-            command=self._bar_settings)
-        self.stage_pressure_Entry = tk.Entry(
-            self.tab_2, state= 'disabled', textvariable=self.stage_pressure)
-        self.stage_barostat_steps_Entry = tk.Entry(
-            self.tab_2, state= 'disabled', textvariable=self.stage_pressure_steps)
-
-        self.pres_grid = [[self.stage_barostat_check,''],
-                         ['Pressure', self.stage_pressure_Entry],
-                         ['Barostat Every', self.stage_barostat_steps_Entry]]
+            command=lambda: self._check_settings('stage_barostat', 'stage_pressure_Entry',
+                                               'stage_barostat_steps_Entry', 1))
+        self.pres_grid = [[self.stage_barostat_check, ''],
+                          ['Pressure', self.stage_pressure_Entry],
+                          ['Barostat Every', self.stage_barostat_steps_Entry]]
         self.auto_grid(self.stage_pressure_lframe, self.pres_grid)
-        
 
-
-        #Tab3
-
-        self.stage_constr_lframe = tk.LabelFrame(self.tab_3, text='Constrained Atoms')
+        # Tab3
+        self.stage_constr_lframe = tk.LabelFrame(
+            self.tab_3, text='Constrained Atoms')
         self.stage_minim_lframe = tk.LabelFrame(self.tab_3, text='Minimize:')
-        frames= [[self.stage_constr_lframe,self.stage_minim_lframe]]
+        frames = [[self.stage_constr_lframe, self.stage_minim_lframe]]
         self.auto_grid(self.tab_3, frames)
 
-        #Fill constr lframe
         self.stage_constrprot_check = ttk.Checkbutton(
-        self.tab_3, text='Protein', variable=self.stage_constrprot)
+            self.tab_3, text='Protein', variable=self.stage_constrprot)
         self.stage_constrback_check = ttk.Checkbutton(
             self.tab_3, text='Bakcbone', variable=self.stage_constrback)
         self.stage_constrother_Entry = tk.Entry(
             self.tab_3, width=20, textvariable=self.stage_constrother)
         self.constr_grid = [[self.stage_constrprot_check],
-                         [self.stage_constrback_check],
-                         ['Other', self.stage_constrother_Entry]]
+                            [self.stage_constrback_check],
+                            ['Other', self.stage_constrother_Entry]]
         self.auto_grid(self.stage_constr_lframe, self.constr_grid)
 
-
-        #Fill minimiz lframe
         self.stage_minimiz_check = ttk.Checkbutton(
-            self.tab_3, text="Minimization", variable=self.stage_minimiz, command= self._minimiz_settings)
-        self.stage_minimiz_max_steps_Entry = tk.Entry(
-            self.tab_3, state= 'disabled', textvariable=self.stage_minimiz_maxsteps)
+            self.tab_3, text="Minimization", variable=self.stage_minimiz,
+            command=lambda: self._check_settings('stage_minimiz', 'stage_minimiz_maxsteps_Entry',
+                                                'stage_minimiz_tolerance_Entry', 1))
+        self.stage_minimiz_maxsteps_Entry = tk.Entry(
+            self.tab_3, state='disabled', textvariable=self.stage_minimiz_maxsteps)
         self.stage_minimiz_tolerance_Entry = tk.Entry(
-            self.tab_3, state= 'disabled', textvariable=self.stage_minimiz_tolerance)
+            self.tab_3, state='disabled', textvariable=self.stage_minimiz_tolerance)
 
-        self.minimiz_grid=[[self.stage_minimiz_check,''],
-                           ['Max Steps', self.stage_minimiz_max_steps_Entry],
-                           ['Tolerance', self.stage_minimiz_tolerance_Entry]]
+        self.minimiz_grid = [[self.stage_minimiz_check, ''],
+                             ['Max Steps', self.stage_minimiz_maxsteps_Entry],
+                             ['Tolerance', self.stage_minimiz_tolerance_Entry]]
         self.auto_grid(self.stage_minim_lframe, self.minimiz_grid)
 
-
-        #Tab 4
+        # Tab 4
         self.stage_mdset_lframe = tk.LabelFrame(self.tab_4)
         self.stage_mdset_lframe.pack(expand=True, fill='both')
 
-        #Fill MD Settings lframe
         self.stage_steps_Entry = tk.Entry(
             self.tab_4, textvariable=self.stage_steps)
         self.stage_dcd_check = tk.Checkbutton(
-            self.tab_4, text= 'DCD trajectory reports', variable= self.stage_dcd)
+            self.tab_4, text='DCD trajectory reports', variable=self.stage_dcd,
+            command=lambda: self._check_settings('stage_dcd', 'stage_reportevery_Entry', 1))
+        self.stage_reportevery_Entry = tk.Entry(
+            self.tab_4, textvariable=self.stage_reportevery, state='disabled')
 
-        #Apply grid
-        self.stage_md=[['MD Steps', self.stage_steps_Entry],
-                        ['', self.stage_dcd_check]]
+        self.stage_md = [['MD Steps', self.stage_steps_Entry],
+                         ['Report every', self.stage_reportevery_Entry],
+                         ['', self.stage_dcd_check]]
         self.auto_grid(self.stage_mdset_lframe, self.stage_md)
-
-
-
-
-
-
-
-
-
-
 
         self.w3.mainloop()
 
-
-
-    def _bar_settings(self):
+    def _save_w3(self):
         """
-        enable/disable barostat settings
+        Save stage on the main listbox while closing the window and reset all variables
         """
 
-        if self.stage_barostat.get() is 1:
-            self.stage_pressure_Entry.configure(state='normal')
-            self.stage_barostat_steps_Entry.configure(state='normal')
+        if len(self.stage_name.get()) is 0:
+            self.stage_name_Entry.configure(background='red')
+
         else:
-            self.stage_pressure_Entry.configure(state='disabled')
-            self.stage_barostat_steps_Entry.configure(state='disabled')
+            self.steady_scrolbox.insert('end', self.stage_name.get())
+            self.w3.withdraw()
+            
+            stages_strings = ["stage_barostat_steps","stage_pressure",
+                         "stage_temp", "stage_minimiz_maxsteps","stage_minimiz_tolerance",
+                         "stage_reportevery","stage_steps",
+                         "stage_name", "stage_constrother"]
+            for item in stages_strings:
+                getattr(self, item + '_Entry').delete(0,'end')
+            check_variables = ["stage_minimiz", "stage_dcd", "stage_barostat",
+                               "stage_constrprot","stage_constrback"]
+            for item in check_variables:
+                getattr(self, item).set(0)
 
-    def _minimiz_settings(self):
-        """
-        enable/disable Minimization settings
-        """
-
-        if self.stage_minimiz.get() is 1:
-            self.stage_minimiz_max_steps_Entry.configure(state='normal')
-            self.stage_minimiz_tolerance_Entry.configure(state='normal')
-        else:
-            self.stage_minimiz_max_steps_Entry.configure(state='disabled')
-            self.stage_minimiz_tolerance_Entry.configure(state='disabled')
-    
-    
     def _close_w3(self):
         """
-        Close window w3
+        Close window w3 and reset all variables
         """
-        self.steady_scrolbox.insert('end', self.stage_name.get())
         self.w3.withdraw()
+        stages_strings = ["stage_barostat_steps","stage_pressure",
+                         "stage_temp", "stage_minimiz_maxsteps","stage_minimiz_tolerance",
+                         "stage_reportevery","stage_steps",
+                         "stage_name", "stage_constrother"]
 
-    def _remove_stage(self):
-        self.steady_scrolbox.delete(self.steady_scrolbox.curselection())
-
-    def _move_stage_up(self):
-        
-        
-        i=(self.steady_scrolbox.curselection())
-        j=int(i[0])        
-        if j is not 0:
-            move_item=self.steady_scrolbox.get(j-1)
-            self.steady_scrolbox.delete(j-1)
-            self.steady_scrolbox.insert(j, move_item)
-
-            
-            
+        for item in stages_strings:
+            getattr(self, item + '_Entry').delete(0,'end')
+        check_variables = ["stage_minimiz", "stage_dcd", "stage_barostat"]
+        for item in check_variables:
+                getattr(self, item).set(0)
 
 
 
-        
+
+    def _fill_w4(self):
+        """
+        Create widgets on TopLevel Window to set different general
+        advanced optinons inside our Molecular Dinamic Simulation
+        """
+
+        # Create TopLevel window
+        self.w4 = tk.Toplevel()
+        self.Center('w4')
+        self.w4.title("Advanced Options")
+
+        # Create Tabs
+        note = ttk.Notebook(self.w4)
+        self.tab_1 = tk.Frame(note)
+        self.tab_2 = tk.Frame(note)
+        self.tab_3 = tk.Frame(note)
+        note.add(self.tab_1, text="Conditions", state="normal")
+        note.add(self.tab_2, text="OpenMM system Options", state="normal")
+        note.add(self.tab_3, text="Hardware", state="normal")
+        note.pack()
+
+        # Tab1
+        self.advopt_conditions_lframe = tk.LabelFrame(
+            self.tab_1, text='Set Conditions')
+        self.advopt_conditions_lframe.pack(expand=True, fill='both')
+
+        self.advopt_friction_Entry = tk.Entry(
+            self.tab_1, textvariable=self.advopt_friction)
+        self.advopt_temp_Entry = tk.Entry(
+            self.tab_1, textvariable=self.advopt_temp)
+        self.advopt_barostat_check = ttk.Checkbutton(
+            self.tab_1, text="Barostat", variable=self.advopt_barostat,
+            command=lambda: self._check_settings('advopt_barostat', 'advopt_pressure_Entry',
+                                               'advopt_barostat_steps_Entry', 1))
+        self.advopt_pressure_Entry = tk.Entry(
+            self.tab_1, state='disabled', textvariable=self.advopt_pressure)
+        self.advopt_barostat_steps_Entry = tk.Entry(
+            self.tab_1, state='disabled', textvariable=self.advopt_pressure_steps)
+
+        self.advopt_grid = [['Friction', self.advopt_friction_Entry],
+                            ['Temperature', self.advopt_temp_Entry],
+                            [self.advopt_barostat_check, ''],
+                            ['Pressure', self.advopt_pressure_Entry],
+                            ['Maximum Steps', self.advopt_barostat_steps_Entry]]
+        self.auto_grid(self.advopt_conditions_lframe, self.advopt_grid)
+
+        # Tab2
+        self.advopt_system_lframe = tk.LabelFrame(
+            self.tab_2, text='Set System Options')
+        self.advopt_system_lframe.pack(expand=True, fill='both')
+
+        self.advopt_nbm_combo = ttk.Combobox(
+            self.tab_2, textvariable=self.advopt_nbm)
+        self.advopt_nbm_combo.config(
+            values=('NoCutoff', 'CutoffNonPeriodic', 'CutoffPeriodic', 'Ewald', 'PME'))
+        self.advopt_cutoff_Entry = tk.Entry(
+            self.tab_2, textvariable=self.advopt_cutoff)
+        self.advopt_edwalderr_Entry = tk.Entry(
+            self.tab_2, textvariable=self.advopt_edwalderr, state='disabled')
+        self.advopt_constr_combo = ttk.Combobox(
+            self.tab_2, textvariable=self.advopt_constr)
+        self.advopt_constr_combo.config(
+            values=('None', 'HBonds', 'HAngles', 'AllBonds'))
+        self.advopt_rigwat_combo = ttk.Combobox(
+            self.tab_2, textvariable=self.advopt_rigwat)
+        self.advopt_rigwat_combo.config(
+            values=('True', 'False'))
+
+        self.advopt_grid = [['Non Bonded Method', self.advopt_nbm_combo],
+                            ['Edwald Tolerance', self.advopt_edwalderr_Entry],
+                            ['Non Bonded Cutoff', self.advopt_cutoff_Entry],
+                            ['Constraints', self.advopt_constr_combo],
+                            ['Rigid Water', self.advopt_rigwat_combo]]
+        self.auto_grid(self.advopt_system_lframe, self.advopt_grid)
+        # Events
+        self.advopt_nbm_combo.bind("<<ComboboxSelected>>", self._PME_settings)
+
+        # Tab3
+
+        self.advopt_hardware_lframe = tk.LabelFrame(
+            self.tab_3, text='Platform')
+        self.advopt_hardware_lframe.pack(expand=True, fill='both')
+
+        self.advopt_platform_combo = ttk.Combobox(
+            self.tab_3, textvariable=self.advopt_hardware)
+        self.advopt_platform_combo.config(values=('CPU', 'OpenCL', 'CUDA'))
+        self.advopt_precision_combo = ttk.Combobox(
+            self.tab_3, textvariable=self.advopt_precision)
+        self.advopt_precision_combo.config(
+            values=('single', 'mixed', 'double'))
+
+        self.advopt_platform_grid = [['', ''],
+                                     ['Platform', self.advopt_platform_combo],
+                                     ['Precision', self.advopt_precision_combo]]
+        self.auto_grid(self.advopt_hardware_lframe, self.advopt_platform_grid)
+
+        #Initialize Variables
+        self.advopt_friction.set(0.01)
+        self.advopt_temp.set(300)
+        self.advopt_barostat.set(0)
+        self.advopt_nbm_combo.current(0)
+        self.advopt_cutoff.set(1)
+        self.advopt_constr_combo.current(0)
+        self.advopt_rigwat_combo.current(0)
+        self.advopt_platform_combo.current(0)
+        self.advopt_precision_combo.current(0)
+
+    def _PME_settings(self, event):
+        """
+        Enable or Disable Edwald Error Entry when
+        CutoffNonPeriodic Combobox is selected
+        """
+        if self.advopt_nbm.get() == 'PME':
+            self.advopt_edwalderr_Entry.configure(state='normal')
+        else:
+            self.advopt_edwalderr_Entry.configure(state='disabled')
+
+
+    def _fill_w5(self):
+
+
+        # Create TopLevel window
+        self.w5 = tk.Toplevel()
+        self.Center('w5')
+        self.w5.title("Advanced Options")
+        #Create lframe
+        self.advopt_input_lframe = tk.LabelFrame(
+            self.w5, text='Initial Files')
+        self.advopt_input_lframe.pack(expand=True, fill='both')
+        #Fill lframe
+        self.input_vel_Entry = tk.Entry(self.w5, textvariable= self.input_vel)
+        self.input_vel_browse = tk.Button(self.w5, text='...', command= lambda: self._browse_file(self.input_vel, 'vel'))
+        self.input_box_Entry = tk.Entry(self.w5, textvariable= self.input_box)
+        self.input_box_browse = tk.Button(self.w5, text='...', command= lambda: self._browse_file(self.input_box, 'xsc'))
+        self.input_charmm_Entry = tk.Entry(self.w5, textvariable= self.input_charmm)
+        self.input_charmm_browse = tk.Button(self.w5, text='...', command= lambda: self._browse_file(self.input_charmm, 'par'))
+        self.input_checkpoint_Entry = tk.Entry(self.w5, textvariable= self.input_checkpoint)
+        self.input_checkpoint_browse = tk.Button(self.w5, text='...', command= lambda: self._browse_file(self.input_checkpoint, 'state.xml'))
+
+        self.input_grid = [['Velocities', self.input_vel_Entry, self.input_vel_browse,
+                             'Box', self.input_box_Entry, self.input_box_browse],
+                           ['Charmm Parameters', self.input_charmm_Entry, self.input_charmm_browse,
+                            'Checkpoint', self.input_checkpoint_Entry, self.input_checkpoint_browse]]
+        self.auto_grid(self.advopt_input_lframe, self.input_grid)
+
+    def _check_settings(self, *args):
+        """
+        Enable or Disable several settings
+        depending on other Checkbutton value
+
+        Parameters
+        ----------
+        args[0]: tk widget Checkbutton where we set an options
+        args[-1]: onvalue Checkbutton normally set as 1
+        args[1],args[2]...: tk widgets to enable or disabled
+
+        """
+        if getattr(self, args[0]).get() == args[-1]:
+            for x in args:
+                if x == args[-1] or x == args[0]:
+                    pass
+                else:
+                    getattr(self, x).configure(state='normal')
+
+        else:
+            for x in args:
+                if x == args[-1] or x == args[0]:
+                    pass
+                else:
+                    getattr(self, x).configure(state='disabled')
+
+
 
 
 # Script Functions
@@ -683,7 +925,7 @@ class OpenMM(ModelessDialog):
                 sticky = 'ew'
                 if isinstance(item, tuple):
                     frame = tk.Frame(parent)
-                    self.auto_pack(frame, item, side='left', padx=2, pady=2, expand=True, fill='x',
+                    self.auto_pack(frame, item, side='left', padx=2, pady=2, expand=True, fill='both',
                                    label_sep=label_sep)
                     item = frame
                 elif isinstance(item, basestring):
@@ -697,6 +939,13 @@ class OpenMM(ModelessDialog):
                     kwargs['sticky'] = sticky
                 item.grid(in_=parent, row=i, column=j, **kwargs)
                 self._fix_styles(item)
+
+    def Center(self, w1):
+        getattr(self, w1).update_idletasks()  # Update "requested size" from geometry manager
+        x = (getattr(self, w1).winfo_screenwidth() - getattr(self, w1).winfo_reqwidth()) / 2
+        y = (getattr(self, w1).winfo_screenheight() - getattr(self, w1).winfo_reqheight()) / 2
+        getattr(self, w1).geometry("+%d+%d" % (x, y))
+        getattr(self, w1).deiconify()
 
     def Close(self):
         """
