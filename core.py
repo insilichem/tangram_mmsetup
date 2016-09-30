@@ -73,7 +73,9 @@ class Model(object):
 
     def __init__(self, gui, *args, **kwargs):
         self.gui= gui
-        self.variables = {'path' : None, 'forcefield' : None, 'charmm_parameters' : None}
+        self.variables = {'path' : None, 'positions' : None, 'forcefield' : None, 'charmm_parameters' : None, 'vel' : None, 
+                            'box' : None, 'restart' : None, 'stdout': None, 'mdtraj' : None, 'interval' : None,
+                            'output' : None}
 
     def parse(self):
         
@@ -93,12 +95,28 @@ class Model(object):
     def path(self):
             return self.gui._path.get()
 
+            
+
     @path.setter
     def path(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui._path[0].set(value)
+        self.gui._path.set(value)
     
+
+    @property
+    def positions(self):
+            return self.gui.var_positions.get()
+
+            
+
+    @positions.setter
+    def positions(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.var_positions(value)
+
+
     @property
     def forcefield(self):
         forcefields = [os.path.join(os.path.dirname(os.path.realpath(self.gui.forcefield.get()+'.xml')),self.gui.forcefield.get()+'.xml'), self.gui.external_forc.get()]
@@ -123,8 +141,79 @@ class Model(object):
             raise ValueError('Cannot access file {}'.format(value))
         self.gui.parametrize_forc.set(value)
 
-
+    @property
+    def vel(self):
+        return self.gui.input_vel.get()
     
+    @vel.setter
+    def vel(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.input_vel.set(value)
+
+    @property
+    def box(self):
+        return self.gui.input_box.get()
+    
+    @box.setter
+    def box(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.input_box.set(value)
+
+    @property
+    def restart(self):
+        return self.gui.input_checkpoint.get()
+    
+    @restart.setter
+    def restart(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.input_checkpoint.set(value)
+    
+    @property
+    def stdout(self):
+        return (self.gui.output.get() + '/stdout')
+    
+    @stdout.setter
+    def stdout(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.output.set(value)
+
+    @property
+    def mdtraj(self):
+        return (self.gui.output.get() + '/mdtraj')
+    
+    @mdtraj.setter
+    def mdtraj(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.output.set(value)
+
+    @property
+    def interval(self):
+        return self.gui.output_interval.get()
+    
+    @interval.setter
+    def interval(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.output_interval.set(value)
+
+    @property
+    def output(self):
+        return self.gui.output.get()
+    
+    @output.setter
+    def output(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.output.set(value)
+
+
+
+
 
 @contextlib.contextmanager
 def ignored(*exceptions):
