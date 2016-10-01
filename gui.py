@@ -68,7 +68,6 @@ def showUI(callback=None, *args, **kwargs):
         ui.addCallback(callback)
 
 
-
 class OpenMM(ModelessDialog):
 
     """
@@ -97,9 +96,9 @@ class OpenMM(ModelessDialog):
                         "input_checkpoint", "var_positions")
 
         self.stages_strings = ("stage_barostat_steps", "stage_pressure",
-                              "stage_temp", "stage_minimiz_maxsteps", "stage_minimiz_tolerance",
-                              "stage_reportevery", "stage_steps",
-                              "stage_name", "stage_constrother")
+                               "stage_temp", "stage_minimiz_maxsteps", "stage_minimiz_tolerance",
+                               "stage_reportevery", "stage_steps",
+                               "stage_name", "stage_constrother")
 
         self.reporters = ('Time', 'Steps', 'Speed', 'Progress', 'Potencial Energy', 'Kinetic Energy',
                           'Total Energy', 'Temperature', 'Volume', 'Density')
@@ -114,20 +113,17 @@ class OpenMM(ModelessDialog):
         for e in self.entries:
             setattr(self, e, tk.StringVar())
         for s in self.stages_strings:
-             setattr(self, s, tk.StringVar())
+            setattr(self, s, tk.StringVar())
         for r in self.reporters:
             setattr(self, r, tk.StringVar())
         for i in self.integrers:
             setattr(self, i, tk.IntVar())
 
-
-        self._path=tk.StringVar()
-        self._path_crd=tk.StringVar()
-        self.path_extinput_top=tk.StringVar()
-        self.path_extinput_crd= tk.StringVar()
-        self.path_pdb=tk.StringVar()
-
-
+        self._path = tk.StringVar()
+        self._path_crd = tk.StringVar()
+        self.path_extinput_top = tk.StringVar()
+        self.path_extinput_crd = tk.StringVar()
+        self.path_pdb = tk.StringVar()
 
         # Misc
         self._basis_set_dialog = None
@@ -174,12 +170,12 @@ class OpenMM(ModelessDialog):
         self.canvas.pack(expand=True, fill='both')
 
         # Create all frames
-        frames =[('ui_input_frame', 'Model Topology'), ('ui_output_frame', 'Output'), ('ui_settings_frame', 'Settings'),
+        frames = [('ui_input_frame', 'Model Topology'), ('ui_output_frame', 'Output'), ('ui_settings_frame', 'Settings'),
                   ('ui_steady_frame', 'Stages')]
         for frame in frames:
             for item in frames:
-                setattr(self, item[0], tk.LabelFrame(self.canvas, text=item[1]))
-
+                setattr(
+                    self, item[0], tk.LabelFrame(self.canvas, text=item[1]))
 
         # Fill frames
         # Fill Input frame
@@ -196,25 +192,30 @@ class OpenMM(ModelessDialog):
 
         self.model_pdb_add = tk.Button(
             self.ui_input_frame, text='Set Model', command=self._include_pdb_model)
-        self.model_pdb_show = tk.Listbox(self.ui_input_frame, listvariable= self.path_pdb)
-        self.model_pdb_options = tk.Button(self.ui_input_frame, text="Advanced\nOptions", command=self._fill_inputopt_window)
-        self.model_pdb_sanitize = tk.Button(self.ui_input_frame, text="Sanitize\nModel")
-        self.pdb_grid=[[self.model_pdb_show],
-                      [(self.model_pdb_options, self.model_pdb_sanitize)],
-                      [self.model_pdb_add]]
+        self.model_pdb_show = tk.Listbox(
+            self.ui_input_frame, listvariable=self.path_pdb)
+        self.model_pdb_options = tk.Button(
+            self.ui_input_frame, text="Advanced\nOptions", command=self._fill_inputopt_window)
+        self.model_pdb_sanitize = tk.Button(
+            self.ui_input_frame, text="Sanitize\nModel")
+        self.pdb_grid = [[self.model_pdb_show],
+                         [(self.model_pdb_options, self.model_pdb_sanitize)],
+                         [self.model_pdb_add]]
         self.auto_grid(self.tab_1, self.pdb_grid)
 
         self.model_extinput_add = tk.Button(
             self.ui_input_frame, text='Set Model', command=self._include_amber_model)
-        self.model_extinput_show = tk.Listbox(self.ui_input_frame, listvariable=self.path_extinput_top)
-        self.model_extinput_options = tk.Button(self.ui_input_frame, text="Advanced\nOptions", command=self._fill_inputopt_window)
-        self.model_extinput_sanitize = tk.Button(self.ui_input_frame, text="Sanitize\nModel")
-        self.extinput_grid=[[self.model_extinput_show],
-                            [(self.model_extinput_options, self.model_extinput_sanitize)],
-                            [self.model_extinput_add]]
+        self.model_extinput_show = tk.Listbox(
+            self.ui_input_frame, listvariable=self.path_extinput_top)
+        self.model_extinput_options = tk.Button(
+            self.ui_input_frame, text="Advanced\nOptions", command=self._fill_inputopt_window)
+        self.model_extinput_sanitize = tk.Button(
+            self.ui_input_frame, text="Sanitize\nModel")
+        self.extinput_grid = [[self.model_extinput_show],
+                              [(self.model_extinput_options,
+                                self.model_extinput_sanitize)],
+                              [self.model_extinput_add]]
         self.auto_grid(self.tab_2, self.extinput_grid)
-
-        
 
         # Fill Output frame
         self.output_entry = tk.Entry(self.canvas, textvariable=self.output)
@@ -228,12 +229,14 @@ class OpenMM(ModelessDialog):
             self.canvas, text='+', command=self._fill_timerep_window)
         self.show_reporters_realtime = tk.Listbox(
             self.ui_output_frame)
-        self.output_interval_Entry = tk.Entry(self.canvas, textvariable=self.output_interval)
+        self.output_interval_Entry = tk.Entry(
+            self.canvas, textvariable=self.output_interval)
 
         self.output_grid = [['Save at', self.output_entry, self.output_browse],
                             ['Trajectory\nReporters',  self.show_reporters_md,
                                 self.add_reporters_md],
-                            ['Real Time\nReporters', self.show_reporters_realtime, self.add_reporters_realtime],
+                            ['Real Time\nReporters', self.show_reporters_realtime,
+                                self.add_reporters_realtime],
                             ['Interval\nReporting', self.output_interval_Entry]]
         self.auto_grid(self.ui_output_frame, self.output_grid)
 
@@ -285,18 +288,18 @@ class OpenMM(ModelessDialog):
             self.canvas, text='-', command=self._remove_stage)
         self.steady_scrolbox = tk.Listbox(self.ui_steady_frame, height=27)
 
-        
         stage_frame_widgets = [['movesteady_down', 8, 4], ['movesteady_up', 6, 4],
                                ['add_to_steady', 2, 4], ['remove_from_steady', 4, 4]]
         for item in stage_frame_widgets:
-                    getattr(self, item[0]).grid(
-                        in_=self.ui_steady_frame, row=item[1], column=item[2],  sticky='news', **self.input_option)
+            getattr(self, item[0]).grid(
+                in_=self.ui_steady_frame, row=item[1], column=item[2],  sticky='news', **self.input_option)
         self.steady_scrolbox.grid(
-        in_=self.ui_steady_frame, row=0, column=0, rowspan=10, columnspan=3, sticky='news', **self.input_option)
+            in_=self.ui_steady_frame, row=0, column=0, rowspan=10, columnspan=3, sticky='news', **self.input_option)
 
         # Grid Frames
         frames = [[self.ui_input_frame, self.ui_output_frame]]
-        self.auto_grid(self.canvas, frames, resize_columns=(0, 1), sticky='news')
+        self.auto_grid(
+            self.canvas, frames, resize_columns=(0, 1), sticky='news')
         self.ui_settings_frame.grid(
             row=len(frames), columnspan=2, sticky='ew', padx=5, pady=5)
         self.ui_steady_frame.grid(
@@ -316,7 +319,6 @@ class OpenMM(ModelessDialog):
 
     # Callbacks
     def _get_path(self, event):
-
         """
         Save path and position variables
         every single time an input Listbox
@@ -333,9 +335,7 @@ class OpenMM(ModelessDialog):
                 self._path.set(self.model_pdb_show.get(0))
                 self.var_positions.set('')
 
-
     def _browse_file(self, var_1, file_type1, file_type2):
-
         """
         Browse file path
         """
@@ -345,9 +345,7 @@ class OpenMM(ModelessDialog):
         if path:
             var_1.set(path)
 
-
     def _browse_directory(self, var):
-
         """
         Search for the path to save the output
 
@@ -363,7 +361,6 @@ class OpenMM(ModelessDialog):
             var.set(path_dir)
 
     def _include_pdb_model(self):
-
         """
         Open and include PDB model on the listbox
         removing all items inside and selecting 
@@ -376,14 +373,12 @@ class OpenMM(ModelessDialog):
 
         if path_file:
             file_name = os.path.basename(path_file)
-            self.model_pdb_show.delete(0,'end')
+            self.model_pdb_show.delete(0, 'end')
             self.path_pdb.set(path_file)
             self.model_pdb_show.select_set(0)
             self._path.set(self.path_pdb.get())
 
-
     def _include_amber_model(self):
-
         """
         Open and include PSF file or Prmtop.
         In that last case also add a inpcrd dile
@@ -397,22 +392,17 @@ class OpenMM(ModelessDialog):
             path_name, ext = os.path.splitext(path_file)
             file_name = os.path.basename(path_name).rstrip('/')
             top_name = file_name + ext
-            self.model_extinput_show.delete(0,'end')
+            self.model_extinput_show.delete(0, 'end')
             self.path_extinput_top.set(path_file)
             self.model_extinput_show.select_set(0)
             self._path.set(self.model_extinput_show.get(0))
             if ext == '.prmtop':
                 crd_name = file_name + '.inpcrd'
-                self.model_extinput_show.insert('end', os.path.join(os.path.dirname(path_file),crd_name))
+                self.model_extinput_show.insert(
+                    'end', os.path.join(os.path.dirname(path_file), crd_name))
                 self.var_positions = self.model_extinput_show.get(1)
-    
-                
-
-
-
 
     def _forc_param(self, event):
-
         """
         Enable or Disable forcefield option
         depending on user input choice
@@ -428,16 +418,13 @@ class OpenMM(ModelessDialog):
             self.parametrize_forc_entry.configure(state='normal')
 
     def _remove_stage(self):
-
         """
         Remove the selected stage from the stage listbox
         """
         if self.steady_scrolbox.get(0):
             self.steady_scrolbox.delete(self.steady_scrolbox.curselection())
 
-
     def _move_stage_up(self):
-
         """
         Move one position upwards the selected stage
         """
@@ -451,7 +438,6 @@ class OpenMM(ModelessDialog):
                 self.steady_scrolbox.insert(j, move_item)
 
     def _move_stage_down(self):
-
         """
         Move one position downwards the selected stage
         """
@@ -464,9 +450,7 @@ class OpenMM(ModelessDialog):
                 self.steady_scrolbox.delete(j+1)
                 self.steady_scrolbox.insert(j, move_item)
 
-
     def _fill_mdtraj_window(self):
-
         """
         Opening MD reports options
         """
@@ -482,7 +466,6 @@ class OpenMM(ModelessDialog):
         self.f1_label = tk.LabelFrame(self.f1, text='MD Reporters')
         self.f1_label.grid(row=0, column=0, **self.input_option)
 
-
         self.dcd_check = ttk.Checkbutton(
             self.f1, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
         self.pdb_check = ttk.Checkbutton(
@@ -490,16 +473,16 @@ class OpenMM(ModelessDialog):
         self.close_b1 = tk.Button(
             self.f1, text='close', command=self._close_mdtraj_window)
 
-        stage_frame_widgets = [['dcd_check', 0, 0], ['pdb_check', 1, 0],['close_b1', 2, 1]]
+        stage_frame_widgets = [
+            ['dcd_check', 0, 0], ['pdb_check', 1, 0], ['close_b1', 2, 1]]
         for item in stage_frame_widgets:
-                    getattr(self, item[0]).grid(
-                        in_=self.f1_label, row=item[1], column=item[2],  sticky='news', **self.input_option)
+            getattr(self, item[0]).grid(
+                in_=self.f1_label, row=item[1], column=item[2],  sticky='news', **self.input_option)
 
         self._fix_styles(self.dcd_check, self.pdb_check, self.close_b1)
         self.mdtraj_window.mainloop()
 
     def _close_mdtraj_window(self):
-
         """
         Close window while pass reporters to the listbox
         """
@@ -511,7 +494,6 @@ class OpenMM(ModelessDialog):
         self.mdtraj_window.withdraw()
 
     def _fill_timerep_window(self):
-
         """
         Opening Other reports options as Time, Energy, Temperature...
         """
@@ -558,7 +540,6 @@ class OpenMM(ModelessDialog):
         self.timerep_window.withdraw()
 
     def _fill_stages_window(self):
-
         """
         Create widgets on TopLevel Window to set different
         stages inside our Molecular Dinamic Simulation
@@ -571,9 +552,10 @@ class OpenMM(ModelessDialog):
 
         # Creating tabs
         note = ttk.Notebook(self.stages_window)
-        titles= ["Stage", "Temperature & Pressure", "Constrains & Minimization", "MD Final Settings"]
+        titles = ["Stage", "Temperature & Pressure",
+                  "Constrains & Minimization", "MD Final Settings"]
         for i, title in enumerate(titles, 1):
-            setattr(self, 'tab_'+str(i), tk.Frame(note))        
+            setattr(self, 'tab_'+str(i), tk.Frame(note))
             note.add(getattr(self, 'tab_'+str(i)), text=title, state="normal")
         note.pack()
 
@@ -669,7 +651,6 @@ class OpenMM(ModelessDialog):
         self.stages_window.mainloop()
 
     def _save_stages_window(self):
-
         """
         Save stage on the main listbox while closing the window and reset all variables
         """
@@ -683,20 +664,18 @@ class OpenMM(ModelessDialog):
             self.steady_scrolbox.insert('end', self.stage_name.get())
             self.stages_window.withdraw()
 
-
             for item in self.stages_strings:
-                getattr(self, item + '_Entry').delete(0, 'end') #Resetting window
+                # Resetting window
+                getattr(self, item + '_Entry').delete(0, 'end')
 
-            for item in check_variables: #Resetting check buttons
+            for item in check_variables:  # Resetting check buttons
                 getattr(self, item).set(0)
 
     def _close_stages_window(self):
-
         """
         Close window stages_window and reset all variables
         """
         self.stages_window.withdraw()
-
 
         for item in self.stages_strings:
             getattr(self, item + '_Entry').delete(0, 'end')
@@ -717,9 +696,9 @@ class OpenMM(ModelessDialog):
 
         # Create Tabs
         note = ttk.Notebook(self.advoptions_window)
-        titles= ["Conditions", "OpenMM System Options", "Hardware"]
+        titles = ["Conditions", "OpenMM System Options", "Hardware"]
         for i, title in enumerate(titles, 1):
-            setattr(self, 'tab_'+str(i), tk.Frame(note))        
+            setattr(self, 'tab_'+str(i), tk.Frame(note))
             note.add(getattr(self, 'tab_'+str(i)), text=title, state="normal")
         note.pack()
 
@@ -735,8 +714,8 @@ class OpenMM(ModelessDialog):
         self.advopt_barostat_check = ttk.Checkbutton(
             self.tab_1, text="Barostat", variable=self.advopt_barostat,
             command=lambda: self._check_settings(
-            'advopt_barostat', 'advopt_pressure_Entry',
-            'advopt_barostat_steps_Entry', 1))
+                'advopt_barostat', 'advopt_pressure_Entry',
+                'advopt_barostat_steps_Entry', 1))
         self.advopt_pressure_Entry = tk.Entry(
             self.tab_1, state='disabled', textvariable=self.advopt_pressure)
         self.advopt_barostat_steps_Entry = tk.Entry(
@@ -831,10 +810,12 @@ class OpenMM(ModelessDialog):
             self.inputopt_window, text='Initial Files')
         self.advopt_input_lframe.pack(expand=True, fill='both')
         # Fill lframe
-        self.input_vel_Entry = tk.Entry(self.inputopt_window, textvariable=self.input_vel)
+        self.input_vel_Entry = tk.Entry(
+            self.inputopt_window, textvariable=self.input_vel)
         self.input_vel_browse = tk.Button(
             self.inputopt_window, text='...', command=lambda: self._browse_file(self.input_vel, 'vel', ''))
-        self.input_box_Entry = tk.Entry(self.inputopt_window, textvariable=self.input_box)
+        self.input_box_Entry = tk.Entry(
+            self.inputopt_window, textvariable=self.input_box)
         self.input_box_browse = tk.Button(
             self.inputopt_window, text='...', command=lambda: self._browse_file(self.input_box, 'xsc', 'csv'))
         self.input_charmm_Entry = tk.Entry(
@@ -933,7 +914,8 @@ class OpenMM(ModelessDialog):
         for widget in widgets:
             options = kwargs.copy()
             if isinstance(widget, basestring):
-                label = self.ui_labels[widget] = tk.Label(parent, text=widget + label_sep if widget else '')
+                label = self.ui_labels[widget] = tk.Label(
+                    parent, text=widget + label_sep if widget else '')
                 widget = label
             if isinstance(widget, (tk.Button, tk.Label)):
                 options['expand'] = False
