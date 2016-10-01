@@ -34,6 +34,7 @@ STYLES = {
     tk.Listbox: {
         'height': '5',
         'width': '5',
+        'background': 'white',
 
     },
     tk.Button: {
@@ -44,6 +45,12 @@ STYLES = {
     tk.Checkbutton: {
         'highlightbackground': chimera.tkgui.app.cget('bg'),
         'activebackground': chimera.tkgui.app.cget('bg'),
+    },
+    MoleculeScrolledListBox: {
+        'listbox_borderwidth': 1,
+        'listbox_background': 'white',
+        'listbox_highlightthickness': 0,
+        'listbox_height': 12,
     }
 }
 
@@ -95,7 +102,7 @@ class OpenMM(ModelessDialog):
                         "input_checkpoint", "var_positions")
 
         self.stages_strings = ("stage_barostat_steps", "stage_pressure",
-                               "stage_temp", "stage_minimiz_maxsteps", "stage_minimiz_tolerance",
+                               "stage_temp", "stage_minimiz_maxsteps", "ststagesage_minimiz_tolerance",
                                "stage_reportevery", "stage_steps",
                                "stage_name", "stage_constrother")
 
@@ -189,17 +196,17 @@ class OpenMM(ModelessDialog):
         # Fill input frame
         # Create and grid tab 1, 2 and 3
 
-        self.model_pdb_add = tk.Button(
-            self.ui_input_frame, text='Set Model', command=self._include_pdb_model)
-        self.model_pdb_show = tk.Listbox(
-            self.ui_input_frame, listvariable=self.path_pdb)
+        #self.model_pdb_add = tk.Button(
+         #   self.ui_input_frame, text='Set Model', command=self._include_pdb_model)
+        self.model_pdb_show = MoleculeScrolledListBox(self.ui_input_frame)
+
         self.model_pdb_options = tk.Button(
             self.ui_input_frame, text="Advanced\nOptions", command=self._fill_inputopt_window)
         self.model_pdb_sanitize = tk.Button(
             self.ui_input_frame, text="Sanitize\nModel")
         self.pdb_grid = [[self.model_pdb_show],
-                         [(self.model_pdb_options, self.model_pdb_sanitize)],
-                         [self.model_pdb_add]]
+                         [(self.model_pdb_options, self.model_pdb_sanitize)]]
+                         #[self.model_pdb_add]]
         self.auto_grid(self.tab_1, self.pdb_grid)
 
         self.model_extinput_add = tk.Button(
@@ -292,6 +299,7 @@ class OpenMM(ModelessDialog):
                 in_=self.ui_steady_frame, row=item[1], column=item[2],  sticky='news', **self.input_option)
         self.steady_scrolbox.grid(
             in_=self.ui_steady_frame, row=0, column=0, rowspan=10, columnspan=3, sticky='news', **self.input_option)
+        self.steady_scrolbox.configure(background='white')
 
         # Grid Frames
         frames = [[self.ui_input_frame, self.ui_output_frame]]
@@ -326,11 +334,11 @@ class OpenMM(ModelessDialog):
         if self.path_extinput_top.get():
             if widget == self.model_extinput_show:
                 self._path.set(self.model_extinput_show.get(0))
-                self.var_positions.set(self.model_extinput_show.get(1))
-        if self.path_pdb.get():
+                self.var_positions=(self.model_extinput_show.get(1))
+        if self.model_pdb_show.getvalue():
             if widget == self.model_pdb_show:
-                self._path.set(self.model_pdb_show.get(0))
-                self.var_positions.set('')
+                self._path.set('path_pdb') #Pathname in Moleculescrollboxx???
+                self.var_positions=None
 
     def _browse_file(self, var_1, file_type1, file_type2):
         """
@@ -357,22 +365,6 @@ class OpenMM(ModelessDialog):
         if path_dir:
             var.set(path_dir)
 
-    def _include_pdb_model(self):
-        """
-        Open and include PDB model on the listbox
-        removing all items inside and selecting 
-        he last added item and Opening all
-        possible conformations
-        """
-
-        path_file = filedialog.askopenfilename(initialdir='~/', filetypes=(
-            ('PDB File', '*.pdb'), ('Coord File', '*.coord')))
-
-        if path_file:
-            self.model_pdb_show.delete(0, 'end')
-            self.path_pdb.set(path_file)
-            self.model_pdb_show.select_set(0)
-            self._path.set(self.path_pdb.get())
 
     def _include_amber_model(self):
         """
@@ -613,9 +605,9 @@ class OpenMM(ModelessDialog):
         self.auto_grid(self.stage_constr_lframe, self.constr_grid)
 
         self.stage_minimiz_check = ttk.Checkbutton(
-            self.tab_3, text="Minimization", variable=self.stage_minimiz,
-            command=lambda: self._check_settings('stage_minimiz', 'stage_minimiz_maxsteps_Entry',
-                                                 'stage_minimiz_tolerance_Entry', 1))
+            self.tab_3, text="Minimization", variable=self.stage_minimiz, offvalue=False,
+            onvalue= True, command=lambda: self._check_settings(
+            'stage_minimiz', 'stage_minimiz_maxsteps_Entry','stage_minimiz_tolerance_Entry', True))
         self.stage_minimiz_maxsteps_Entry = tk.Entry(
             self.tab_3, state='disabled', textvariable=self.stage_minimiz_maxsteps)
         self.stage_minimiz_tolerance_Entry = tk.Entry(
@@ -708,9 +700,10 @@ class OpenMM(ModelessDialog):
             self.tab_1, textvariable=self.advopt_temp)
         self.advopt_barostat_check = ttk.Checkbutton(
             self.tab_1, text="Barostat", variable=self.advopt_barostat,
+            onvalue= True, offvalue= False,
             command=lambda: self._check_settings(
                 'advopt_barostat', 'advopt_pressure_Entry',
-                'advopt_barostat_steps_Entry', 1))
+                'advopt_barostat_steps_Entry', True))
         self.advopt_pressure_Entry = tk.Entry(
             self.tab_1, state='disabled', textvariable=self.advopt_pressure)
         self.advopt_barostat_steps_Entry = tk.Entry(
