@@ -9,6 +9,7 @@ import Tkinter as tk
 import tkFileDialog as filedialog
 import ttk
 
+
 # Chimera stuff
 import chimera
 import chimera.tkgui
@@ -227,10 +228,8 @@ class OpenMM(ModelessDialog):
         self.output_entry = tk.Entry(self.canvas, textvariable=self.output)
         self.output_browse = tk.Button(
             self.canvas, text='...', command=lambda: self._browse_directory(self.output))
-        self.add_reporters_md = tk.Button(
-            self.canvas, text='+', command=self._fill_mdtraj_window)
-        self.show_reporters_md = tk.Listbox(
-            self.ui_output_frame)
+        self.show_reporters_md =  ttk.Combobox(self.canvas, textvariable=self.md_reporters)
+        self.show_reporters_md.config(values=('PDB','DCD'))
         self.add_reporters_realtime = tk.Button(
             self.canvas, text='+', command=self._fill_timerep_window)
         self.show_reporters_realtime = tk.Listbox(
@@ -239,8 +238,7 @@ class OpenMM(ModelessDialog):
             self.canvas, textvariable=self.output_interval)
 
         self.output_grid = [['Save at', self.output_entry, self.output_browse],
-                            ['Trajectory\nReporters',  self.show_reporters_md,
-                                self.add_reporters_md],
+                            ['Trajectory\nReporters',  self.show_reporters_md],
                             ['Real Time\nReporters', self.show_reporters_realtime,
                                 self.add_reporters_realtime],
                             ['Interval\nReporting', self.output_interval_Entry]]
@@ -278,10 +276,14 @@ class OpenMM(ModelessDialog):
         self.auto_grid(self.ui_settings_frame, self.settings_grid)
 
         # Fill Steady frame
-        self.photo_down = tk.PhotoImage(
-            file="/home/daniel/openmmTK/OpenMM/arrow_down.png")
-        self.photo_up = tk.PhotoImage(
-            file="/home/daniel/openmmTK/OpenMM/arrow_up.png")
+
+        try:
+            self.photo_down = tk.PhotoImage(
+                file=(os.path.join(os.path.dirname(__file__),'arrow_down.png')))
+            self.photo_up = tk.PhotoImage(
+                file=(os.path.join(os.path.dirname(__file__),'arrow_up.png')))
+        except (tk.TclError):
+            print('No image inside directory. Up and down arrow PNGS should be inside the OpenMM package')
         self.movesteady_up = tk.Button(
             self.canvas, image=self.photo_up, command=self._move_stage_up)
         self.movesteady_down = tk.Button(
@@ -437,48 +439,7 @@ class OpenMM(ModelessDialog):
                 self.steady_scrolbox.delete(j+1)
                 self.steady_scrolbox.insert(j, move_item)
 
-    def _fill_mdtraj_window(self):
-        """
-        Opening MD reports options
-        """
 
-        # creating window
-        self.mdtraj_window = tk.Toplevel()
-        self.Center('mdtraj_window')
-        self.mdtraj_window.title("MD reporters")
-
-        self.f1 = tk.Frame(self.mdtraj_window)
-        self.f1.pack()
-
-        self.f1_label = tk.LabelFrame(self.f1, text='MD Reporters')
-        self.f1_label.grid(row=0, column=0, **self.input_option)
-
-        self.dcd_check = ttk.Checkbutton(
-            self.f1, text="DCD Reporter", variable=self.dcd, onvalue='dcd', offvalue='')
-        self.pdb_check = ttk.Checkbutton(
-            self.f1, text="PDB Reporter", variable=self.pdbr, onvalue='pdb', offvalue='')
-        self.close_b1 = tk.Button(
-            self.f1, text='close', command=self._close_mdtraj_window)
-
-        stage_frame_widgets = [
-            ['dcd_check', 0, 0], ['pdb_check', 1, 0], ['close_b1', 2, 1]]
-        for item in stage_frame_widgets:
-            getattr(self, item[0]).grid(
-                in_=self.f1_label, row=item[1], column=item[2],  sticky='news', **self.input_option)
-
-        self._fix_styles(self.dcd_check, self.pdb_check, self.close_b1)
-        self.mdtraj_window.mainloop()
-
-    def _close_mdtraj_window(self):
-        """
-        Close window while pass reporters to the listbox
-        """
-        self.show_reporters_md.delete(0, 'end')
-        if self.dcd.get() == self.dcd_check['onvalue']:
-            self.show_reporters_md.insert('end', self.dcd.get())
-        if self.pdbr.get() == self.pdb_check['onvalue']:
-            self.show_reporters_md.insert('end', self.pdbr.get())
-        self.mdtraj_window.withdraw()
 
     def _fill_timerep_window(self):
         """
