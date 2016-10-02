@@ -51,7 +51,7 @@ STYLES = {
         'listbox_borderwidth': 1,
         'listbox_background': 'white',
         'listbox_highlightthickness': 0,
-        'listbox_height': 12,
+        'listbox_height': 10,
     }
 }
 
@@ -100,7 +100,7 @@ class OpenMM(ModelessDialog):
                         "dcd", "pdbr", "other_reporters", "md_reporters", "stage_name", "stage_constrprot",
                         "stage_constrback", "stage_constrother", "advopt_nbm", "advopt_constr", "advopt_rigwat",
                         "advopt_hardware", "advopt_precision", "input_vel", "input_box", "input_charmm",
-                        "input_checkpoint", "var_positions")
+                        "input_checkpoint", "var_positions", "traj_atoms")
 
         self.stages_strings = ("stage_barostat_steps", "stage_pressure",
                                "stage_temp", "stage_minimiz_maxsteps", "ststagesage_minimiz_tolerance",
@@ -115,7 +115,9 @@ class OpenMM(ModelessDialog):
                           "stage_pressure", "stage_barostat", "stage_temp", "stage_minimiz_maxsteps",
                           "stage_minimiz_tolerance", "stage_minimiz", "stage_dcd", "stage_reportevery",
                           "stage_steps", "advopt_temp", "advopt_pressure", "advopt_pressure_steps",
-                          "advopt_friction", "advopt_barostat", "advopt_cutoff", "advopt_edwalderr", "output_interval")
+                          "advopt_friction", "advopt_barostat", "advopt_cutoff", "advopt_edwalderr",
+                          "output_trajinterval", "output_stdoutinterval", "traj_new_every",
+                          "restart_every")
 
         for e in self.entries:
             setattr(self, e, tk.StringVar())
@@ -131,6 +133,7 @@ class OpenMM(ModelessDialog):
         self.path_extinput_top = tk.StringVar()
         self.path_extinput_crd = tk.StringVar()
         self.path_pdb = tk.StringVar()
+        self.verbose = True
 
         # Misc
         self._basis_set_dialog = None
@@ -229,19 +232,24 @@ class OpenMM(ModelessDialog):
         self.output_browse = tk.Button(
             self.canvas, text='...', command=lambda: self._browse_directory(self.output))
         self.show_reporters_md =  ttk.Combobox(self.canvas, textvariable=self.md_reporters)
-        self.show_reporters_md.config(values=('PDB','DCD'))
+        self.show_reporters_md.config(values=('PDB','DCD','None'))
         self.add_reporters_realtime = tk.Button(
             self.canvas, text='+', command=self._fill_timerep_window)
         self.show_reporters_realtime = tk.Listbox(
             self.ui_output_frame)
-        self.output_interval_Entry = tk.Entry(
-            self.canvas, textvariable=self.output_interval)
+        self.output_trjinterval_Entry = tk.Entry(
+            self.canvas, textvariable=self.output_trajinterval)
+        self.output_stdoutinterval_Entry = tk.Entry(
+            self.canvas, textvariable=self.output_stdoutinterval)
+        self.output_options = tk.Button(self.canvas, text='Opt', command = self._fill_outputopt_window)
 
         self.output_grid = [['Save at', self.output_entry, self.output_browse],
                             ['Trajectory\nReporters',  self.show_reporters_md],
                             ['Real Time\nReporters', self.show_reporters_realtime,
                                 self.add_reporters_realtime],
-                            ['Interval\nReporting', self.output_interval_Entry]]
+                            ['Trajectory\nEvery', self.output_trjinterval_Entry],
+                            ['Stdout \nEvery', self.output_stdoutinterval_Entry,
+                            self.output_options]]
         self.auto_grid(self.ui_output_frame, self.output_grid)
 
         # Fill Settings frame
@@ -322,7 +330,8 @@ class OpenMM(ModelessDialog):
         self.int_combo.current(0)
         self.tstep.set(1000)
         self.output.set(os.path.expanduser('~'))
-        self.output_interval.set(1000)
+        self.output_trajinterval.set(1000)
+        self.output_stdoutinterval.set(1000)
 
     # Callbacks
     def _get_path(self, event):
@@ -485,7 +494,39 @@ class OpenMM(ModelessDialog):
         for item in self.reporters:
             if getattr(self, item).get() == item:
                 getattr(self, listbox).insert('end', getattr(self, item).get())
+        if  getattr(self, listbox).get(0,'end'):
+            self.verbose = True
+        else:
+            self.verbose = False
         self.timerep_window.withdraw()
+
+    def _fill_outputopt_window(self):
+        """
+        Opening  report options
+        """
+
+        # Create window
+        self.outputopt = tk.Toplevel()
+        self.Center('outputopt')
+        self.outputopt.title("Output Options")
+
+        # Create frame and lframe
+        self.f1 = tk.Frame(self.outputopt)
+        self.f1.pack()
+        self.f1_label = tk.LabelFrame(self.f1, text='Advanced Output Options')
+        self.f1_label.grid(row=0, column=0, **self.input_option)
+
+        #Create Widgets
+        self.outputopt_traj_new_every_Entry = tk.Entry(self.f1, textvariable=self.traj_new_every)
+        self.outputopt_traj_atom_subset_Entry = tk.Entry(self.f1, textvariable=self.traj_atoms)
+        self.outputopt_restart_every_Entry = tk.Entry(self.f1, textvariable=self.restart_every)
+
+        #Grid them
+        self.outputopt_grid=[['Trajectory\nNew Every', self.outputopt_traj_new_every_Entry],
+                             ['Trajectory\nAtom Subset', self.outputopt_traj_atom_subset_Entry],
+                             ['Restart Every', self.outputopt_restart_every_Entry]]
+        self.auto_grid(self.f1_label, self.outputopt_grid)
+
 
     def _fill_stages_window(self):
         """
