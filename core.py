@@ -61,7 +61,9 @@ class Model(object):
                           'nonbondedMethod': None, 'nonbondedCutoff': None, 'ewaldErrorTolerance': None,
                           'constraints': None, 'rigidWater': False, 'platform':None, 'precision':None,
                           'timestep': None, 'barostat': False, 'temperature': None, 'friction': None, 
-                          'pressure': None, 'barostat_every': None}
+                          'pressure': None, 'barostat_every': None, "stdout_every": None,
+                          'trajectory_every': None, 'trajectory_new_every': None, 'restart_every': None,
+                          'trajectory_atom_subset': None, 'report': True, 'trajectory': None}
 
     def parse(self):
 
@@ -300,7 +302,73 @@ class Model(object):
 
     @barostat_every.setter
     def barostat_every(self, value):
-        self.gui.self.advopt_pressure_steps.set(value)   
+        self.gui.self.advopt_pressure_steps.set(value) 
+
+
+    @property
+    def trajectory_every(self):
+        return self.gui.output_trajinterval.get()
+
+    @trajectory_every.setter
+    def trajectory_every(self, value):
+        self.gui.self.output_trajinterval.set(value)
+
+
+    @property
+    def stdout_every(self):
+        return self.gui.output_stdoutinterval.get()
+
+    @stdout_every.setter
+    def stdout_every(self, value):
+        self.gui.self.output_stdoutinterval.set(value)
+
+    @property
+    def verbose(self):
+        return self.gui.verbose.get()
+
+    @verbose.setter
+    def verbose(self, value):
+        self.gui.self.verbose.set(value)
+
+
+    @property
+    def trajectory_new_every(self):
+        return self.gui.traj_new_every.get()
+
+    @trajectory_new_every.setter
+    def trajectory_new_every(self, value):
+        self.gui.self.traj_new_every.set(value)
+
+    @property
+    def restart_every(self):
+        return self.gui.restart_every.get()
+
+    @restart_every.setter
+    def restart_every(self, value):
+        self.gui.self.restart_every.set(value)
+
+    @property
+    def trajectory(self):
+        return self.gui.md_reporters.get()
+
+    @trajectory.setter
+    def trajectory(self, value):
+        self.gui.self.md_reporters.set(value) 
+
+    @property
+    def trajectory_atom_subset(self):
+        return self.gui.traj_atoms.get()
+
+    @trajectory_atom_subset.setter
+    def trajectory_atom_subset(self, value):
+        self.gui.self.traj_atoms.set(value) 
+
+    @property
+    def report(self):
+        if self.gui.md_reporters.get() == 'None':
+            return False
+        else:
+            return True   
 
 
 
