@@ -5,6 +5,7 @@
 from __future__ import print_function, division
 # Python stdlib
 import os
+import collections
 import contextlib
 # Chimera stuff
 # Additional 3rd parties
@@ -42,7 +43,8 @@ class Controller(object):
 
     def run(self):
         self.model.parse()
-        print(self.model.variables.values())
+        print(self.model.variables)
+        print('\n')
         return
 
 
@@ -55,6 +57,8 @@ class Model(object):
 
     def __init__(self, gui, *args, **kwargs):
         self.gui = gui
+        self.variables= collections.OrderedDict()
+        self.variables_stage = collections.OrderedDict()
         self.variables = {'path': None, 'positions': None, 'forcefield': None, 'charmm_parameters': None, 
                           'vel': None, 'box': None, 'restart': None, 'stdout': None, 'mdtraj' : None,
                           'trajectory_every': None, 'output': None, 'integrator': None,
@@ -64,11 +68,15 @@ class Model(object):
                           'pressure': None, 'barostat_every': None, "stdout_every": None,
                           'trajectory_every': None, 'trajectory_new_every': None, 'restart_every': None,
                           'trajectory_atom_subset': None, 'report': True, 'trajectory': None}
+        self.variables_stage = {'name': None, 'temperature': None, 'pressure': None,
+                                'barostat_every': None, 'barostat': False, 'constraint': None,
+                                'constraint2': None, 'constraint3':None, 'minimization': False,
+                                'minimization_max_steps': None, 'minimization_tolerance': None,
+                                'reporters': False, 'steps': None, 'report_every': None }
 
     def parse(self):
 
-        for item in list(self.variables.keys()):
-            print(item)
+        for item in self.variables.keys():
             self.variables[item] = getattr(self, item)
 
         try:
@@ -79,19 +87,33 @@ class Model(object):
             if all(v for v in self.variables.values()):  # Python 3
                 return self.variables.values()
 
+        self.stages()
+
+    def stages(self):
+        for name in self.gui.names:
+            for i, variable in enumerate(getattr(self.gui, 'stage_' + name)):
+                key = sorted(self.variables_stage.keys())
+                self.variables_stage[key[i]] = variable
+            setattr(self, 'variable_stage_' + name, self.variables_stage.copy())
+            print(getattr(self, 'variable_stage_' + name))
+            print('\n')
+
+
+                   
+
     @property
     def path(self):
-        return self.gui._path.get()
+        return self.gui.var__path.get()
 
     @path.setter
     def path(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui._path.set(value)
+        self.gui.var__path.set(value)
 
     @property
     def positions(self):
-        return self.gui.var_positions
+        return self.gui.var_positions.get()
 
     @positions.setter
     def positions(self, value):
@@ -101,8 +123,8 @@ class Model(object):
 
     @property
     def forcefield(self):
-        forcefields = [os.path.join(os.path.dirname(os.path.realpath(self.gui.forcefield.get(
-        )+'.xml')), self.gui.forcefield.get()+'.xml'), self.gui.external_forc.get()]
+        forcefields = [os.path.join(os.path.dirname(os.path.realpath(self.gui.var_forcefield.get(
+        )+'.xml')), self.gui.var_forcefield.get()+'.xml'), self.gui.var_external_forc.get()]
         return forcefields
     """No funciona real path"""
 
@@ -115,257 +137,257 @@ class Model(object):
 
     @property
     def charmm_parameters(self):
-        return self.gui.parametrize_forc.get()
+        return self.gui.var_parametrize_forc.get()
 
     @charmm_parameters.setter
     def charmm_parameters(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.parametrize_forc.set(value)
+        self.gui.var_parametrize_forc.set(value)
 
     @property
     def vel(self):
-        return self.gui.input_vel.get()
+        return self.gui.var_input_vel.get()
 
     @vel.setter
     def vel(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.input_vel.set(value)
+        self.gui.var_input_vel.set(value)
 
     @property
     def box(self):
-        return self.gui.input_box.get()
+        return self.gui.var_input_box.get()
 
     @box.setter
     def box(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.input_box.set(value)
+        self.gui.var_input_box.set(value)
 
     @property
     def restart(self):
-        return self.gui.input_checkpoint.get()
+        return self.gui.var_input_checkpoint.get()
 
     @restart.setter
     def restart(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.input_checkpoint.set(value)
+        self.gui.var_input_checkpoint.set(value)
 
     @property
     def stdout(self):
-        return (self.gui.output.get() + '/stdout')
+        return (self.gui.var_output.get() + '/stdout')
 
     @stdout.setter
     def stdout(self, value):
-        self.gui.output.set(value)
+        self.gui.var_output.set(value)
 
     @property
     def mdtraj(self):
-        return (self.gui.output.get() + '/mdtraj')
+        return (self.gui.var_output.get() + '/mdtraj')
 
     @mdtraj.setter
     def mdtraj(self, value):
-        self.gui.output.set(value)
+        self.gui.var_output.set(value)
 
     @property
     def trajectory_every(self):
-        return self.gui.output_interval.get()
+        return self.gui.var_output_interval.get()
 
     @trajectory_every.setter
     def trajectory_every(self, value):
-        self.gui.output_interval.set(value)
+        self.gui.var_output_interval.set(value)
 
     @property
     def output(self):
-        return self.gui.output.get()
+        return self.gui.var_output.get()
 
     @output.setter
     def output(self, value):
-        self.gui.output.set(value)
+        self.gui.var_output.set(value)
 
     @property
     def integrator(self):
-        return self.gui.integrator.get()
+        return self.gui.var_integrator.get()
 
     @integrator.setter
     def integrator(self, value):
-        self.gui.integrator.set(value)
+        self.gui.var_integrator.set(value)
 
 
     @property
     def nonbondedMethod(self):
-        return self.gui.advopt_nbm.get()
+        return self.gui.var_advopt_nbm.get()
 
     @nonbondedMethod.setter
     def nonbondedMethod(self, value):
-        self.gui.advopt_nbm.set(value)
+        self.gui.var_advopt_nbm.set(value)
 
     @property
     def nonbondedCutoff(self):
-        return self.gui.advopt_cutoff.get()
+        return self.gui.var_advopt_cutoff.get()
 
     @nonbondedCutoff.setter
     def nonbondedCutoff(self, value):
-        self.gui.advopt_cutoff.set(value)
+        self.gui.var_advopt_cutoff.set(value)
 
     @property
     def ewaldErrorTolerance(self):
-        return self.gui.advopt_edwalderr.get()
+        return self.gui.var_advopt_edwalderr.get()
 
     @ewaldErrorTolerance.setter
     def ewaldErrorTolerance(self, value):
-        self.gui.advopt_edwalderr.set(value)
+        self.gui.var_advopt_edwalderr.set(value)
 
 
     @property
     def rigidWater(self):
-        return self.gui.advopt_rigwat.get()
+        return self.gui.var_advopt_rigwat.get()
 
     @rigidWater.setter
     def rigidWater(self, value):
-        self.gui.advopt_rigwat.set(value) 
+        self.gui.var_advopt_rigwat.set(value) 
 
 
     @property
     def constraints(self):
-        return self.gui.advopt_constr.get()
+        return self.gui.var_advopt_constr.get()
 
     @constraints.setter
     def constraints(self, value):
-        self.gui.advopt_constr.set(value)
+        self.gui.var_advopt_constr.set(value)
 
     @property
     def platform(self):
-        return self.gui.advopt_hardware.get()
+        return self.gui.var_advopt_hardware.get()
 
     @platform.setter
     def platform(self, value):
-        self.gui.advopt_hardware.set(value)
+        self.gui.var_advopt_hardware.set(value)
 
 
     @property
     def precision(self):
-        return self.gui.advopt_precision.get()
+        return self.gui.var_advopt_precision.get()
 
     @precision.setter
     def precision(self, value):
-        self.gui.advopt_precision.set(value)
+        self.gui.var_advopt_precision.set(value)
 
 
     @property
     def timestep(self):
-        return self.gui.tstep.get()
+        return self.gui.var_tstep.get()
 
     @timestep.setter
     def timestep(self, value):
-        self.gui.tstep.set(value)
+        self.gui.tstep.var_set(value)
 
     @property
     def barostat(self):
-        return self.gui.advopt_barostat.get()
+        return self.gui.var_advopt_barostat.get()
 
     @barostat.setter
     def barostat(self, value):
-        self.gui.self.advopt_barostat.set(value)
+        self.gui.self.var_advopt_barostat.set(value)
 
     @property
     def temperature(self):
-        return self.gui.advopt_temp.get()
+        return self.gui.var_advopt_temp.get()
 
     @temperature.setter
     def temperature(self, value):
-        self.gui.self.advopt_temp.set(value)
+        self.gui.self.var_advopt_temp.set(value)
 
     @property
     def friction(self):
-        return self.gui.advopt_friction.get()
+        return self.gui.var_advopt_friction.get()
 
     @friction.setter
     def friction(self, value):
-        self.gui.self.advopt_friction.set(value)
+        self.gui.self.var_advopt_friction.set(value)
 
     @property
     def pressure(self):
-        return self.gui.advopt_pressure.get()
+        return self.gui.var_advopt_pressure.get()
 
     @pressure.setter
     def pressure(self, value):
-        self.gui.self.advopt_pressure.set(value)   
+        self.gui.self.var_advopt_pressure.set(value)   
 
 
 
     @property
     def barostat_every(self):
-        return self.gui.advopt_pressure_steps.get()
+        return self.gui.var_advopt_pressure_steps.get()
 
     @barostat_every.setter
     def barostat_every(self, value):
-        self.gui.self.advopt_pressure_steps.set(value) 
+        self.gui.self.var_advopt_pressure_steps.set(value) 
 
 
     @property
     def trajectory_every(self):
-        return self.gui.output_trajinterval.get()
+        return self.gui.var_output_traj_interval.get()
 
     @trajectory_every.setter
     def trajectory_every(self, value):
-        self.gui.self.output_trajinterval.set(value)
+        self.gui.self.var_output_traj_interval.set(value)
 
 
     @property
     def stdout_every(self):
-        return self.gui.output_stdoutinterval.get()
+        return self.gui.var_output_stdout_interval.get()
 
     @stdout_every.setter
     def stdout_every(self, value):
-        self.gui.self.output_stdoutinterval.set(value)
+        self.gui.self.var_output_stdout_interval.set(value)
 
     @property
     def verbose(self):
-        return self.gui.verbose.get()
+        return self.gui.var_verbose.get()
 
     @verbose.setter
     def verbose(self, value):
-        self.gui.self.verbose.set(value)
+        self.gui.self.var_verbose.set(value)
 
 
     @property
     def trajectory_new_every(self):
-        return self.gui.traj_new_every.get()
+        return self.gui.var_traj_new_every.get()
 
     @trajectory_new_every.setter
     def trajectory_new_every(self, value):
-        self.gui.self.traj_new_every.set(value)
+        self.gui.self.var_traj_new_every.set(value)
 
     @property
     def restart_every(self):
-        return self.gui.restart_every.get()
+        return self.gui.var_restart_every.get()
 
     @restart_every.setter
     def restart_every(self, value):
-        self.gui.self.restart_every.set(value)
+        self.gui.self.var_restart_every.set(value)
 
     @property
     def trajectory(self):
-        return self.gui.md_reporters.get()
+        return self.gui.var_md_reporters.get()
 
     @trajectory.setter
     def trajectory(self, value):
-        self.gui.self.md_reporters.set(value) 
+        self.gui.self.var_md_reporters.set(value) 
 
     @property
     def trajectory_atom_subset(self):
-        return self.gui.traj_atoms.get()
+        return self.gui.var_traj_atoms.get()
 
     @trajectory_atom_subset.setter
     def trajectory_atom_subset(self, value):
-        self.gui.self.traj_atoms.set(value) 
+        self.gui.self.var_traj_atoms.set(value) 
 
     @property
     def report(self):
-        if self.gui.md_reporters.get() == 'None':
+        if self.gui.var_md_reporters.get() == 'None':
             return False
         else:
             return True   
