@@ -125,7 +125,39 @@ class OpenMM(ModelessDialog):
         for i in self.integer:
             setattr(self, 'var_' + i, tk.IntVar()) 
         for boolean in self.boolean:
-            setattr(self, 'var_' + boolean, tk.BooleanVar())        
+            setattr(self, 'var_' + boolean, tk.BooleanVar()) 
+
+        #Initialise Variables
+        self.var_forcefield.set('amber96')
+        self.var_integrator.set('Langevin')
+        self.var_tstep.set(1000)
+        self.var_output.set(os.path.expanduser('~'))
+        self.var_output_traj_interval.set(1000)
+        self.var_output_stdout_interval.set(1000)
+        self.var_md_reporters.set(None)
+        self.var_advopt_friction.set(0.01)
+        self.var_advopt_temp.set(300)
+        self.var_advopt_barostat.set(False)
+        self.var_advopt_pressure.set(1)
+        self.var_advopt_pressure_steps.set(25)
+        self.var_advopt_cutoff.set(1)
+        self.var_advopt_nbm.set('NoCutoff')
+        self.var_advopt_constr.set(None)
+        self.var_advopt_hardware.set('CPU')
+        self.var_advopt_precision.set('single')
+        self.var_advopt_rigwat.set('True')
+        self.var_stage_temp.set(300)
+        self.var_stage_minimiz.set(False)
+        self.var_stage_minimiz_maxsteps.set(10000)
+        self.var_stage_minimiz_tolerance.set(10)
+        self.var_stage_constrprot.set(None)
+        self.var_stage_constrback.set(None)
+        self.var_stage_steps.set(10000)
+        self.var_stage_barostat.set(False)
+        self.var_stage_pressure.set(self.var_advopt_pressure.get())
+        self.var_stage_pressure_steps.set(self.var_advopt_pressure_steps.get())
+        self.var_stage_dcd.set(False)
+        self.var_stage_reportevery.set(1000)       
 
         # Misc
         self._basis_set_dialog = None
@@ -137,8 +169,6 @@ class OpenMM(ModelessDialog):
                                 'var_stage_minimiz_maxsteps', 'var_stage_minimiz_tolerance', 
                                 'var_stage_name', 'var_stage_pressure', 'var_stage_dcd', 
                                 'var_stage_reportevery', 'var_stage_steps', 'var_stage_temp')
-                                
-                                
         self.stages_strings = (
                     'ui_stage_barostat_steps', 'ui_stage_pressure',
                     'ui_stage_temp', 'ui_stage_minimiz_maxsteps',
@@ -275,7 +305,8 @@ class OpenMM(ModelessDialog):
         self.ui_forcefield_frcmod = tk.Button(
             self.canvas, text='...', command=lambda: self._browse_file(self.var_external_forc, 'frcmod', ''))
         self.ui_forcefield_charmmpar = tk.Button(
-            self.canvas, text='...', command=lambda: self._browse_file(self.var_parametrize_forc, 'par', ''))
+            self.canvas, text='...', state= 'disabled', 
+            command=lambda: self._browse_file(self.var_parametrize_forc, 'par', ''))
         self.ui_forcefield_frcmod_entry = tk.Entry(
             self.canvas, textvariable=self.var_external_forc)
         self.ui_forcefield_charmmpar_entry = tk.Entry(
@@ -285,9 +316,10 @@ class OpenMM(ModelessDialog):
         self.ui_integrator.config(
             values=('Langevin', 'Brownian', 'Verlet', 'VariableVerlet', 'VariableLangevin'))
         self.ui_timestep_entry = tk.Entry(
-            self.canvas, textvariable=self.var_tstep, )
+            self.canvas, textvariable=self.var_tstep)
         self.ui_advanced_options = tk.Button(
             self.canvas, text='Opt', command=self._fill_ui_advopt_window)
+
 
         self.settings_grid = [['Forcefield', self.ui_forcefield_combo, self.ui_forcefield_add],
                               ['External\nForcefield',  self.ui_forcefield_frcmod_entry,
@@ -341,13 +373,9 @@ class OpenMM(ModelessDialog):
         self.ui_model_extinput_show.bind("<<ListboxSelect>>", self._get_path)
         self.ui_model_pdb_show.bind("<<ListboxSelect>>", self._get_path)
 
-        # Initialize Variables
-        self.ui_forcefield_combo.current(0)
-        self.ui_integrator.current(0)
-        self.var_tstep.set(1000)
-        self.var_output.set(os.path.expanduser('~'))
-        self.var_output_traj_interval.set(1000)
-        self.var_output_stdout_interval.set(1000)
+
+
+
 
     # Callbacks
     def _get_path(self, event):
@@ -425,10 +453,17 @@ class OpenMM(ModelessDialog):
             self.ui_forcefield_frcmod_entry.configure(state='normal')
             self.ui_forcefield_combo.configure(state='normal')
             self.ui_forcefield_charmmpar_entry.configure(state='disabled')
+            self.ui_forcefield_charmmpar.configure(state= 'disabled')
+            self.ui_forcefield_add.configure(state='normal')
+            self.ui_forcefield_frcmod.configure(state='normal')            
         elif self.ui_note.index(self.ui_note.select()) == 1:
             self.ui_forcefield_frcmod_entry.configure(state='disabled')
             self.ui_forcefield_combo.configure(state='disabled')
             self.ui_forcefield_charmmpar_entry.configure(state='normal')
+            self.ui_forcefield_charmmpar.configure(state= 'normal')
+            self.ui_forcefield_add.configure(state='disabled')
+            self.ui_forcefield_frcmod.configure(state='disabled')
+
 
     def _remove_stage(self):
         """
@@ -647,7 +682,7 @@ class OpenMM(ModelessDialog):
             self.ui_tab_4, textvariable=self.var_stage_steps)
         self.ui_stage_dcd_check = tk.Checkbutton(
             self.ui_tab_4, text='DCD trajectory reports', variable=self.var_stage_dcd,
-            onvalue='DCD', offvalue=None,
+            onvalue='DCD', offvalue=False,
             command=lambda: self._check_settings('var_stage_dcd', 'ui_stage_reportevery_Entry', 'DCD'))
         self.ui_stage_reportevery_Entry = tk.Entry(
             self.ui_tab_4, textvariable=self.var_stage_reportevery, state='disabled')
@@ -656,18 +691,6 @@ class OpenMM(ModelessDialog):
                          ['Report every', self.ui_stage_reportevery_Entry],
                          ['', self.ui_stage_dcd_check]]
         self.auto_grid(self.ui_stage_mdset_lframe, self.stage_md)
-
-        # Set variables
-        self.var_stage_temp.set(300)
-        self.var_stage_minimiz_maxsteps.set(10000)
-        self.var_stage_minimiz_tolerance.set(10)
-        self.var_stage_steps.set(10000)
-        self.var_advopt_pressure.set(1)
-        self.var_advopt_pressure_steps.set(25)
-        self.var_stage_pressure.set(self.var_advopt_pressure.get())
-        self.var_stage_pressure_steps.set(self.var_advopt_pressure_steps.get())
-        self.var_stage_dcd.set(None)
-
         self.ui_stages_window.mainloop()
 
     def _save_ui_stages_window(self):
@@ -800,19 +823,6 @@ class OpenMM(ModelessDialog):
                                      ['Platform', self.ui_advopt_platform_combo],
                                      ['Precision', self.ui_advopt_precision_combo]]
         self.auto_grid(self.ui_advopt_hardware_lframe, self.advopt_platform_grid)
-
-        # Initialize Variables
-        self.var_advopt_friction.set(0.01)
-        self.var_advopt_temp.set(300)
-        self.var_advopt_barostat.set(0)
-        self.var_advopt_pressure.set(1)
-        self.var_advopt_pressure_steps.set(25)
-        self.ui_advopt_nbm_combo.current(0)
-        self.var_advopt_cutoff.set(1)
-        self.ui_advopt_constr_combo.current(0)
-        self.ui_advopt_rigwat_combo.current(0)
-        self.ui_advopt_platform_combo.current(0)
-        self.ui_advopt_precision_combo.current(0)
 
     def _PME_settings(self, event):
         """
