@@ -13,17 +13,22 @@ import contextlib
 import gui
 
 """
-This module contains the business logic of your extension. Normally, it should
-contain the Controller and the Model. Read on MVC design if you don't know about it.
+This module contains the business logic of your extension.
+Normally, it should contain the Controller and the Model.
+Read on MVC design if you don't know about it.
 """
 
 
 class Controller(object):
 
-    """ 
-    The controller manages the communication between the UI (graphic interface)
-    and the data model. Actions such as clicks on buttons, enabling certain areas, 
-    or runing external programs, are the responsibility of the controller.
+    """
+    The controller manages the communication
+    between the UI (graphic interface)
+    and the data model.
+    Actions such as clicks on buttons,
+    enabling certain areas,
+    or runing external programs,
+    are the responsibility of the controller.
     """
 
     def __init__(self, gui, model, *args, **kwargs):
@@ -50,29 +55,37 @@ class Controller(object):
 
 class Model(object):
 
-    """The model controls the data we work with. Normally, it'd be a Chimera molecule
-    and some input files from other programs. The role of the model is to create
-    a layer around those to allow the easy access and use to the data contained in
+    """The model controls the data we work with.
+    Normally, it'd be a Chimera molecule
+    and some input files from other programs.
+    The role of the model is to create
+    a layer around those to allow the easy
+    access and use to the data contained in
     those files"""
 
     def __init__(self, gui, *args, **kwargs):
         self.gui = gui
-        self.variables= collections.OrderedDict()
+        self.variables = collections.OrderedDict()
         self.variables_stage = collections.OrderedDict()
-        self.variables = {'path': None, 'positions': None, 'forcefield': None, 'charmm_parameters': None, 
-                          'vel': None, 'box': None, 'restart': None, 'stdout': None, 'mdtraj' : None,
-                          'trajectory_every': None, 'output': None, 'integrator': None,
-                          'nonbondedMethod': None, 'nonbondedCutoff': None, 'ewaldErrorTolerance': None,
-                          'constraints': None, 'rigidWater': False, 'platform':None, 'precision':None,
-                          'timestep': None, 'barostat': False, 'temperature': None, 'friction': None, 
-                          'pressure': None, 'barostat_every': None, "stdout_every": None,
-                          'trajectory_every': None, 'trajectory_new_every': None, 'restart_every': None,
-                          'trajectory_atom_subset': None, 'report': True, 'trajectory': None}
+        self.variables = {'path': None, 'positions': None, 'forcefield': None,
+                          'charmm_parameters': None, 'vel': None, 'box': None,
+                          'restart': None, 'stdout': None, 'mdtraj' : None,
+                          'trajectory_every': None, 'output': None, 'integrator': None,                          'nonbondedMethod': None, 'nonbondedCutoff': None, 'ewaldErrorTolerance': None,
+                          'constraints': None, 'rigidWater': False, 'platform':None,
+                          'precision':None, 'timestep': None, 'barostat': False,
+                          'temperature': None, 'friction': None,'pressure': None,
+                          'barostat_every': None, "stdout_every": None,
+                          'trajectory_every': None, 'trajectory_new_every': None,
+                          'restart_every': None, 'trajectory_atom_subset': None,
+                          'report': True, 'trajectory': None}
+
         self.variables_stage = {'name': None, 'temperature': None, 'pressure': None,
-                                'barostat_every': None, 'barostat': False, 'constraint': None,
-                                'constraint2': None, 'constraint3':None, 'minimization': False,
-                                'minimization_max_steps': None, 'minimization_tolerance': None,
-                                'reporters': False, 'steps': None, 'report_every': None }
+                                'barostat_every': None, 'barostat': False,
+                                'constraint': None, 'constraint2': None,
+                                'constraint3':None, 'minimization': False,
+                                'minimization_max_steps': None,
+                                'minimization_tolerance': None, 'reporters': False,
+                                'steps': None, 'report_every': None }
 
     def parse(self):
 
@@ -98,9 +111,6 @@ class Model(object):
             print(getattr(self, 'variable_stage_' + name))
             print('\n')
 
-
-                   
-
     @property
     def path(self):
         return self.gui.var__path.get()
@@ -123,9 +133,13 @@ class Model(object):
 
     @property
     def forcefield(self):
-        forcefields = [os.path.join(os.path.dirname(os.path.realpath(self.gui.var_forcefield.get(
-        )+'.xml')), self.gui.var_forcefield.get()+'.xml'), self.gui.var_external_forc.get()]
-        return forcefields
+        forcefields1 = [os.path.join(os.path.dirname(os.path.realpath(
+            self.gui.var_forcefield.get() + '.xml')),
+            self.gui.var_forcefield.get() + '.xml'),
+            self.gui.var_external_forc.get()]
+        self.forcefields = forcefields1 + list(
+            self.gui.var_forcefield_external.get())
+        return self.forcefields
     """No funciona real path"""
 
     """@path.setter
@@ -215,7 +229,6 @@ class Model(object):
     def integrator(self, value):
         self.gui.var_integrator.set(value)
 
-
     @property
     def nonbondedMethod(self):
         return self.gui.var_advopt_nbm.get()
@@ -240,15 +253,13 @@ class Model(object):
     def ewaldErrorTolerance(self, value):
         self.gui.var_advopt_edwalderr.set(value)
 
-
     @property
     def rigidWater(self):
         return self.gui.var_advopt_rigwat.get()
 
     @rigidWater.setter
     def rigidWater(self, value):
-        self.gui.var_advopt_rigwat.set(value) 
-
+        self.gui.var_advopt_rigwat.set(value)
 
     @property
     def constraints(self):
@@ -266,7 +277,6 @@ class Model(object):
     def platform(self, value):
         self.gui.var_advopt_hardware.set(value)
 
-
     @property
     def precision(self):
         return self.gui.var_advopt_precision.get()
@@ -274,7 +284,6 @@ class Model(object):
     @precision.setter
     def precision(self, value):
         self.gui.var_advopt_precision.set(value)
-
 
     @property
     def timestep(self):
@@ -314,9 +323,7 @@ class Model(object):
 
     @pressure.setter
     def pressure(self, value):
-        self.gui.self.var_advopt_pressure.set(value)   
-
-
+        self.gui.self.var_advopt_pressure.set(value)
 
     @property
     def barostat_every(self):
@@ -324,8 +331,7 @@ class Model(object):
 
     @barostat_every.setter
     def barostat_every(self, value):
-        self.gui.self.var_advopt_pressure_steps.set(value) 
-
+        self.gui.self.var_advopt_pressure_steps.set(value)
 
     @property
     def trajectory_every(self):
@@ -334,7 +340,6 @@ class Model(object):
     @trajectory_every.setter
     def trajectory_every(self, value):
         self.gui.self.var_output_traj_interval.set(value)
-
 
     @property
     def stdout_every(self):
@@ -351,7 +356,6 @@ class Model(object):
     @verbose.setter
     def verbose(self, value):
         self.gui.self.var_verbose.set(value)
-
 
     @property
     def trajectory_new_every(self):
@@ -375,7 +379,7 @@ class Model(object):
 
     @trajectory.setter
     def trajectory(self, value):
-        self.gui.self.var_md_reporters.set(value) 
+        self.gui.self.var_md_reporters.set(value)
 
     @property
     def trajectory_atom_subset(self):
@@ -383,23 +387,14 @@ class Model(object):
 
     @trajectory_atom_subset.setter
     def trajectory_atom_subset(self, value):
-        self.gui.self.var_traj_atoms.set(value) 
+        self.gui.self.var_traj_atoms.set(value)
 
     @property
     def report(self):
         if self.gui.var_md_reporters.get() == 'None':
             return False
         else:
-            return True   
-
-
-
-
-
-
-
-
-
+            return True
     """
     Stages
 
