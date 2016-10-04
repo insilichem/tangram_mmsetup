@@ -38,12 +38,11 @@ class Controller(object):
 
     def set_mvc(self):
         # Tie model and gui
-        self.model.variables_keys = self.model.variables.keys() # This is already a list
+        self.model.variables_keys = list(self.model.variables.keys())
         for item in self.model.variables_keys:
-            with ignored(AttributeError): # I don't like silent errors...
-                var = getattr(self.model, '_' + item) # Anyway, getattr accepts a 3rd argument. Look it up!
-                # Avoid scope problems with lambdas by being explicit about the args
-                var.trace(lambda item=item, value=var.get(): setattr(self.model, item, value))
+            with ignored(AttributeError):
+                var = getattr(self.model, '_' + item)
+                var.trace(lambda *args: setattr(self.model, item, var.get()))
 
         self.gui.buttonWidgets['Run'].configure(command=self.run)
 
@@ -51,7 +50,7 @@ class Controller(object):
         self.model.parse()
         print(self.model.variables)
         print('\n')
-        # Empty returns are redundant. All methods return None if return is not present.
+        return
 
 
 class Model(object):
@@ -66,7 +65,6 @@ class Model(object):
 
     def __init__(self, gui, *args, **kwargs):
         self.gui = gui
-        # Do you really need sorting?
         self.variables = collections.OrderedDict()
         self.variables_stage = collections.OrderedDict()
         self.variables = {'path': None, 'positions': None, 'forcefield': None,
@@ -81,8 +79,6 @@ class Model(object):
                           'restart_every': None, 'trajectory_atom_subset': None,
                           'report': True, 'trajectory': None}
 
-        # What's with these constraint<n> vars?
-        # Besides, stage variables are the same as toplevel variables
         self.variables_stage = {'name': None, 'temperature': None, 'pressure': None,
                                 'barostat_every': None, 'barostat': False,
                                 'constraint': None, 'constraint2': None,
@@ -92,40 +88,38 @@ class Model(object):
                                 'steps': None, 'report_every': None }
 
     def parse(self):
-        # By default, without .items(), Python iterate over dict keys
-        for key in self.variables:
-            self.variables[key] = getattr(self, key)
-            # I don't totally get this, but I think I know what you're
-            # trying to do... So, why not make self.variables a property
-            # that retrieves all the needed attributes in a dict?
-            # That way, this method is not needed
-        
-        # We don't support Python 3 because Chimera doesn't. This is not needed.
-        # Also, if you return now, self.stages() won't be executed
-        # Remember return == exit function
-        # if all(self.variables.values()): # Careful! A value of zero is falsey!
-        if all([v is not None for v in self.variable.values()]):
-            # Anyway, why would we need this? Call variables and that's it.
-            return self.variables.values()
 
-        # This won't be executed.
-        # self.stages()
+        for item in self.variables.keys():
+            self.variables[item] = getattr(self, item)
+
+        try:
+            if all(v for v in self.variables.viewvalues()):  # Python2.7
+                return self.variables.values()
+
+        except AttributeError:
+            if all(v for v in self.variables.values()):  # Python 3
+                return self.variables.values()
+
+        self.stages()
 
     def stages(self):
-        # Rework this. self.gui should have a .stages dict or list attribute,
-        # not a series of static attributes with hardcoded names
-        # Then, make stages a property that retrieve those in the proper way
-        pass
+        for name in self.gui.names:
+            for i, variable in enumerate(getattr(self.gui, 'stage_' + name)):
+                key = sorted(self.variables_stage.keys())
+                self.variables_stage[key[i]] = variable
+            setattr(self, 'variable_stage_' + name, self.variables_stage.copy())
+            print(getattr(self, 'variable_stage_' + name))
+            print('\n')
 
     @property
     def path(self):
-        return self.gui.var_path.get() # Why double underscores here?
+        return self.gui.var__path.get()
 
     @path.setter
     def path(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var_path.set(value) # Why double underscores here?
+        self.gui.var__path.set(value)
 
     @property
     def positions(self):
@@ -139,15 +133,14 @@ class Model(object):
 
     @property
     def forcefield(self):
-        forcefields = [os.path.join(os.path.dirname(os.path.realpath(
+        forcefields1 = [os.path.join(os.path.dirname(os.path.realpath(
             self.gui.var_forcefield.get() + '.xml')),
             self.gui.var_forcefield.get() + '.xml'),
             self.gui.var_external_forc.get()]
-        self.forcefields = forcefields + list(
+        self.forcefields = forcefields1 + list(
             self.gui.var_forcefield_external.get())
         return self.forcefields
     """No funciona real path"""
-    # Realpath is not magic, but you don't need it. OpenMM handles that.
 
     """@path.setter
     def path(self, value):
@@ -196,23 +189,21 @@ class Model(object):
             raise ValueError('Cannot access file {}'.format(value))
         self.gui.var_input_checkpoint.set(value)
 
-    # Careful with these choices. User should have control on that.
-    # @property
-    # def stdout(self):
-    #     return (self.gui.var_output.get() + '/stdout')
+    @property
+    def stdout(self):
+        return (self.gui.var_output.get() + '/stdout')
 
-    # @stdout.setter
-    # def stdout(self, value):
-    #     self.gui.var_output.set(value)
+    @stdout.setter
+    def stdout(self, value):
+        self.gui.var_output.set(value)
 
-    # 'mdtraj'? What for?
-    # @property
-    # def mdtraj(self):
-    #     return (self.gui.var_output.get() + '/mdtraj')
+    @property
+    def mdtraj(self):
+        return (self.gui.var_output.get() + '/mdtraj')
 
-    # @mdtraj.setter
-    # def mdtraj(self, value):
-    #     self.gui.var_output.set(value)
+    @mdtraj.setter
+    def mdtraj(self, value):
+        self.gui.var_output.set(value)
 
     @property
     def trajectory_every(self):
