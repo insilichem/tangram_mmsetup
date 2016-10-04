@@ -230,10 +230,9 @@ class OpenMM(ModelessDialog):
                   ('ui_output_frame', 'Output'),
                   ('ui_settings_frame', 'Settings'),
                   ('ui_stage_frame', 'Stages')]
-        for frame in frames:
-            for item in frames:
-                setattr(
-                    self, item[0], tk.LabelFrame(self.canvas, text=item[1]))
+        # Use tuple unpacking
+        for attr, text in frames:
+            setattr(self, attr, tk.LabelFrame(self.canvas, text=text))
 
         # Fill frames
         # Fill Input frame
@@ -303,14 +302,16 @@ class OpenMM(ModelessDialog):
             self.canvas, text='Opt', command=lambda: self._not_open_2_times(
                 'ui_output_opt', self._fill_ui_output_opt_window))
 
-        self.output_grid = [['Save at', self.ui_output_entry, self.ui_output_browse],
+        # We don't need this in other methods, so no need to save it in self
+        # Probably the same for other similar cases
+        output_grid = [['Save at', self.ui_output_entry, self.ui_output_browse],
                             ['Trajectory\nReporters', self.ui_output_reporters_md],
                             ['Real Time\nReporters', self.ui_output_reporters_realtime,
                                 self.ui_output_addreporters_realtime],
                             ['Trajectory\nEvery', self.ui_output_trjinterval_Entry],
                             ['Stdout \nEvery', self.ui_output_stdout_interval_Entry,
                              self.ui_output_options]]
-        self.auto_grid(self.ui_output_frame, self.output_grid)
+        self.auto_grid(self.ui_output_frame, output_grid)
 
         # Fill Settings frame
         self.ui_forcefield_combo = ttk.Combobox(
@@ -464,9 +465,9 @@ class OpenMM(ModelessDialog):
             path_name, ext = os.path.splitext(path_file)
             file_name = os.path.basename(path_name).rstrip('/')
             self.ui_model_extinput_show.delete(0, 'end')
-            self.var_path_extinput_top.set(path_file)
+            self.var_path_extinput_top.set(path_file) # single underscore
             self.ui_model_extinput_show.select_set(0)
-            self.var__path.set(self.ui_model_extinput_show.get(0))
+            self.var__path.set(self.ui_model_extinput_show.get(0)) # doble underscore?
             if ext == '.prmtop':
                 crd_name = file_name + '.inpcrd'
                 self.ui_model_extinput_show.insert(
@@ -509,12 +510,11 @@ class OpenMM(ModelessDialog):
         """
 
         if self.ui_stages_listbox.curselection():
-            i = (self.ui_stages_listbox.curselection())
-            j = int(i[0])
-            if j is not 0:
-                move_item = self.ui_stages_listbox.get(j-1)
-                self.ui_stages_listbox.delete(j-1)
-                self.ui_stages_listbox.insert(j, move_item)
+            i = int(self.ui_stages_listbox.curselection()[0])
+            if i != 0:
+                move_item = self.ui_stages_listbox.get(i-1)
+                self.ui_stages_listbox.delete(i-1)
+                self.ui_stages_listbox.insert(i, move_item)
 
     def _move_stage_down(self):
         """
@@ -522,12 +522,12 @@ class OpenMM(ModelessDialog):
         """
 
         if self.ui_stages_listbox.curselection():
-            i = (self.ui_stages_listbox.curselection())
-            j = int(i[0])
-            if j is not ((len(self.ui_stages_listbox.get(0, 'end'))-1)):
-                move_item = self.ui_stages_listbox.get(j+1)
-                self.ui_stages_listbox.delete(j+1)
-                self.ui_stages_listbox.insert(j, move_item)
+            i = int(self.ui_stages_listbox.curselection())
+            last_index = len(self.ui_stages_listbox.get(0, 'end')) - 1
+            if i != last_index:
+                move_item = self.ui_stages_listbox.get(i+1)
+                self.ui_stages_listbox.delete(i+1)
+                self.ui_stages_listbox.insert(i, move_item)
 
     def _fill_ui_stdout_window(self):
         """
@@ -588,7 +588,7 @@ class OpenMM(ModelessDialog):
             self.var_verbose = False
         self.ui_stdout_window.withdraw()
 
-    def _not_open_2_times(self, window, function):
+    def _not_open_2_times(self, window, function): # What?!
         """
         Get sure the window is not opened
         a second time
@@ -604,7 +604,7 @@ class OpenMM(ModelessDialog):
     def _fill_ui_output_opt_window(self):
         """
         Opening  report options
-    """
+        """
         # Create window
         self.ui_output_opt = tk.Toplevel()
         self.Center('ui_output_opt')
@@ -964,7 +964,7 @@ class OpenMM(ModelessDialog):
             ('Xml File', '*.xml'), ('Frcmod File', '*.frcmod')))
         self.ui_add_forcefields_List.insert('end', path)
 
-    def _check_settings(self, *args):
+    def _check_settings(self, *args): # This whole args thing is messy! Think another way.
         """
         Enable or Disable several settings
         depending on other Checkbutton value
@@ -974,7 +974,7 @@ class OpenMM(ModelessDialog):
         args[0]: tk widget Checkbutton where we set an options
         args[-1]: onvalue Checkbutton normally set as 1
         args[1],args[2]...: tk widgets to enable or disabled
-
+    
         """
         if getattr(self, args[0]).get() == args[-1]:
             for x in args:
@@ -1056,6 +1056,7 @@ class OpenMM(ModelessDialog):
             self._fix_styles(widget)
 
     def Center(self, window):
+        # Why don't you pass the window object instead of its attrname?
         # Update "requested size" from geometry manager
         getattr(self, window).update_idletasks()
         x = (getattr(self, window).winfo_screenwidth() -
