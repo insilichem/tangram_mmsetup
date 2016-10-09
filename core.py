@@ -78,7 +78,10 @@ class Model(object):
         self.retrieve_settings()
         self.stages
         print(self.variables.items())
-        print(self.stages)
+        for stage in self.stages:
+            print('\n')
+            print(stage)
+            print('\n')
 
     @property
     def stages(self):
@@ -96,7 +99,7 @@ class Model(object):
 
     @property
     def positions(self):
-        return self.gui.var_positions.get()
+        return self.gui.var_positions
 
     @positions.setter
     def positions(self, value):
