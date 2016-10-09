@@ -81,7 +81,7 @@ class OpenMM(ModelessDialog):
     To display a new dialog on the interface, you will normally inherit from
     ModelessDialog class of chimera.baseDialog module. Being modeless means
     you can have this dialog open while using other parts of the interface.
-    If you don't want this behaviour and instead you want your extension to 
+    If you don't want this behaviour and instead you want your extension to
     claim exclusive usage, use ModalDialog.
     """
 
@@ -102,9 +102,10 @@ class OpenMM(ModelessDialog):
                         'advopt_precision', 'input_vel', 'input_box',
                         'input_checkpoint', 'positions', 'traj_atoms',
                         'barostat', 'stage_name', 'stage_constrother',
-                        '_path', '_path_crd', 'path_extinput_top',
+                        'path', 'path_crd', 'path_extinput_top',
                         'path_extinput_crd', 'verbose', 'advopt_cutoff',
-                        'forcefield_external')
+                        'forcefield_external', 'traj_directory',
+                        'stdout_directory')
 
         self.boolean = ('stage_barostat', 'advopt_barostat', 'stage_minimiz')
 
@@ -153,30 +154,17 @@ class OpenMM(ModelessDialog):
         self.var_advopt_hardware.set('CPU')
         self.var_advopt_precision.set('single')
         self.var_advopt_rigwat.set('True')
-        self.var_stage_temp.set(300)
-        self.var_stage_minimiz.set(False)
-        self.var_stage_minimiz_maxsteps.set(10000)
-        self.var_stage_minimiz_tolerance.set(10)
-        self.var_stage_constrprot.set(None)
-        self.var_stage_constrback.set(None)
-        self.var_stage_steps.set(10000)
-        self.var_stage_barostat.set(False)
-        self.var_stage_pressure.set(self.var_advopt_pressure.get())
-        self.var_stage_pressure_steps.set(self.var_advopt_pressure_steps.get())
-        self.var_stage_dcd.set(False)
-        self.var_stage_reportevery.set(1000)
+        self.var_stdout_directory.set('stdout')
+        self.var_traj_directory.set('traj')
+        self.set_stage_variables()
 
         # Misc
         self._basis_set_dialog = None
         self.ui_labels = {}
+        self.dict_stage = {}
         self.input_option = {'padx': 10, 'pady': 10}
         self.names = []
-        self.stage_variables = ('var_stage_barostat', 'var_stage_pressure_steps',
-                                'var_stage_constrprot', 'var_stage_constrback',
-                                'var_stage_constrother', 'var_stage_minimiz',
-                                'var_stage_minimiz_maxsteps', 'var_stage_minimiz_tolerance',
-                                'var_stage_name', 'var_stage_pressure', 'var_stage_dcd',
-                                'var_stage_reportevery', 'var_stage_steps', 'var_stage_temp')
+        self.stages = []
         self.stages_strings = (
             'ui_stage_barostat_steps', 'ui_stage_pressure',
             'ui_stage_temp', 'ui_stage_minimiz_maxsteps',
@@ -230,7 +218,6 @@ class OpenMM(ModelessDialog):
                   ('ui_output_frame', 'Output'),
                   ('ui_settings_frame', 'Settings'),
                   ('ui_stage_frame', 'Stages')]
-        # Use tuple unpacking
         for attr, text in frames:
             setattr(self, attr, tk.LabelFrame(self.canvas, text=text))
 
@@ -247,14 +234,11 @@ class OpenMM(ModelessDialog):
         # Fill input frame
         # Create and grid tab 1, 2 and 3
 
-        # self.model_pdb_add = tk.Button(
-        # self.ui_input_frame, text='Set Model',
-        # command=self._include_pdb_model)
         self.ui_model_pdb_show = MoleculeScrolledListBox(self.ui_input_frame)
 
         self.ui_model_pdb_options = tk.Button(
             self.ui_input_frame, text="Advanced\nOptions",
-            command=lambda: self._not_open_2_times(
+            command=lambda: self._open_window(
                 'ui_input_opt_window', self._fill_ui_input_opt_window))
         self.ui_model_pdb_sanitize = tk.Button(
             self.ui_input_frame, text="Sanitize\nModel")
@@ -270,15 +254,15 @@ class OpenMM(ModelessDialog):
             self.ui_input_frame, listvariable=self.var_path_extinput_top)
         self.ui_model_extinput_options = tk.Button(
             self.ui_input_frame, text="Advanced\nOptions",
-            command=lambda: self._not_open_2_times(
+            command=lambda: self._open_window(
                 'ui_input_opt_window', self._fill_ui_input_opt_window))
         self.ui_model_extinput_sanitize = tk.Button(
             self.ui_input_frame, text="Sanitize\nModel")
-        self.extinput_grid = [[self.ui_model_extinput_show],
-                              [(self.ui_model_extinput_options,
-                                self.ui_model_extinput_sanitize)],
-                              [self.ui_model_extinput_add]]
-        self.auto_grid(self.ui_tab_2, self.extinput_grid)
+        extinput_grid = [[self.ui_model_extinput_show],
+                         [(self.ui_model_extinput_options,
+                           self.ui_model_extinput_sanitize)],
+                         [self.ui_model_extinput_add]]
+        self.auto_grid(self.ui_tab_2, extinput_grid)
 
         # Fill Output frame
         self.ui_output_entry = tk.Entry(
@@ -290,7 +274,7 @@ class OpenMM(ModelessDialog):
             self.canvas, textvariable=self.var_md_reporters)
         self.ui_output_reporters_md.config(values=('PDB', 'DCD', 'None'))
         self.ui_output_addreporters_realtime = tk.Button(
-            self.canvas, text='+', command=lambda: self._not_open_2_times(
+            self.canvas, text='+', command=lambda: self._open_window(
                 'ui_stdout_window', self._fill_ui_stdout_window))
         self.ui_output_reporters_realtime = tk.Listbox(
             self.ui_output_frame)
@@ -299,18 +283,16 @@ class OpenMM(ModelessDialog):
         self.ui_output_stdout_interval_Entry = tk.Entry(
             self.canvas, textvariable=self.var_output_stdout_interval)
         self.ui_output_options = tk.Button(
-            self.canvas, text='Opt', command=lambda: self._not_open_2_times(
+            self.canvas, text='Opt', command=lambda: self._open_window(
                 'ui_output_opt', self._fill_ui_output_opt_window))
 
-        # We don't need this in other methods, so no need to save it in self
-        # Probably the same for other similar cases
         output_grid = [['Save at', self.ui_output_entry, self.ui_output_browse],
-                            ['Trajectory\nReporters', self.ui_output_reporters_md],
-                            ['Real Time\nReporters', self.ui_output_reporters_realtime,
-                                self.ui_output_addreporters_realtime],
-                            ['Trajectory\nEvery', self.ui_output_trjinterval_Entry],
-                            ['Stdout \nEvery', self.ui_output_stdout_interval_Entry,
-                             self.ui_output_options]]
+                       ['Trajectory\nReporters', self.ui_output_reporters_md],
+                       ['Real Time\nReporters', self.ui_output_reporters_realtime,
+                        self.ui_output_addreporters_realtime],
+                       ['Trajectory\nEvery', self.ui_output_trjinterval_Entry],
+                       ['Stdout \nEvery', self.ui_output_stdout_interval_Entry,
+                        self.ui_output_options]]
         self.auto_grid(self.ui_output_frame, output_grid)
 
         # Fill Settings frame
@@ -321,7 +303,7 @@ class OpenMM(ModelessDialog):
             'amber99sbnmr', 'amber03', 'amber10'))
         self.ui_forcefield_add = tk.Button(
             self.canvas, text='+',
-            command=lambda: self._not_open_2_times(
+            command=lambda: self._open_window(
                 'ui_add_forcefields', self._fill_ui_add_forcefields))
         self.ui_forcefield_frcmod = tk.Button(
             self.canvas, text='...',
@@ -345,16 +327,16 @@ class OpenMM(ModelessDialog):
             self.canvas, textvariable=self.var_tstep)
         self.ui_advanced_options = tk.Button(
             self.canvas, text='Opt',
-            command=lambda: self._not_open_2_times(
+            command=lambda: self._open_window(
                 'ui_advopt_window', self._fill_ui_advopt_window))
-        self.settings_grid = [['Forcefield', self.ui_forcefield_combo, self.ui_forcefield_add],
-                              ['External\nForcefield',  self.ui_forcefield_frcmod_entry,
-                                  self.ui_forcefield_frcmod],
-                              ['Charmm\nParamaters', self.ui_forcefield_charmmpar_entry,
-                                  self.ui_forcefield_charmmpar],
-                              ['Integrator', self.ui_integrator],
-                              ['Time Step', self.ui_timestep_entry, self.ui_advanced_options]]
-        self.auto_grid(self.ui_settings_frame, self.settings_grid)
+        settings_grid = [['Forcefield', self.ui_forcefield_combo, self.ui_forcefield_add],
+                         ['External\nForcefield', self.ui_forcefield_frcmod_entry,
+                          self.ui_forcefield_frcmod],
+                         ['Charmm\nParamaters', self.ui_forcefield_charmmpar_entry,
+                          self.ui_forcefield_charmmpar],
+                         ['Integrator', self.ui_integrator],
+                         ['Time Step', self.ui_timestep_entry, self.ui_advanced_options]]
+        self.auto_grid(self.ui_settings_frame, settings_grid)
 
         # Fill Steady frame
 
@@ -373,7 +355,7 @@ class OpenMM(ModelessDialog):
             self.canvas, image=self.photo_down, command=self._move_stage_down)
         self.ui_stages_add = tk.Button(
             self.canvas, text='+',
-            command=lambda: self._not_open_2_times(
+            command=lambda: self._open_window(
                 'ui_stages_window', self._fill_ui_stages_window))
         self.ui_stages_listbox = tk.Listbox(self.ui_stage_frame, height=27)
         self.ui_stages_remove = tk.Button(
@@ -384,9 +366,9 @@ class OpenMM(ModelessDialog):
                                ['ui_stages_up', 6, 4],
                                ['ui_stages_add', 2, 4],
                                ['ui_stages_remove', 4, 4]]
-        for item in stage_frame_widgets:
-            getattr(self, item[0]).grid(
-                in_=self.ui_stage_frame, row=item[1], column=item[2],
+        for item, row, column in stage_frame_widgets:
+            getattr(self, item).grid(
+                in_=self.ui_stage_frame, row=row, column=column,
                 sticky='news', **self.input_option)
         self.ui_stages_listbox.grid(
             in_=self.ui_stage_frame, row=0, column=0, rowspan=10, columnspan=3,
@@ -418,12 +400,12 @@ class OpenMM(ModelessDialog):
         widget = event.widget
         if self.var_path_extinput_top.get():
             if widget == self.ui_model_extinput_show:
-                self.var__path.set(self.ui_model_extinput_show.get(0))
+                self.var_path.set(self.ui_model_extinput_show.get(0))
                 self.var_positions = (self.ui_model_extinput_show.get(1))
         if self.ui_model_pdb_show.getvalue():
             if widget == self.ui_model_pdb_show:
                 # Pathname in Moleculescrollboxx???
-                self.var__path.set('path_pdb')
+                self.var_path.set('path_pdb')
                 self.var_positions = None
 
     def _browse_file(self, var_1, file_type1, file_type2):
@@ -465,9 +447,9 @@ class OpenMM(ModelessDialog):
             path_name, ext = os.path.splitext(path_file)
             file_name = os.path.basename(path_name).rstrip('/')
             self.ui_model_extinput_show.delete(0, 'end')
-            self.var_path_extinput_top.set(path_file) # single underscore
+            self.var_path_extinput_top.set(path_file)
             self.ui_model_extinput_show.select_set(0)
-            self.var__path.set(self.ui_model_extinput_show.get(0)) # doble underscore?
+            self.var_path.set(self.ui_model_extinput_show.get(0))
             if ext == '.prmtop':
                 crd_name = file_name + '.inpcrd'
                 self.ui_model_extinput_show.insert(
@@ -499,10 +481,10 @@ class OpenMM(ModelessDialog):
         """
         Remove the selected stage from the stage listbox
         """
-
-        if getattr(self, listbox).curselection():
-            getattr(self, listbox).delete(
-                getattr(self, listbox).curselection())
+        widget = getattr(self, listbox)
+        if widget.curselection():
+            widget.delete(
+                widget.curselection())
 
     def _move_stage_up(self):
         """
@@ -522,9 +504,8 @@ class OpenMM(ModelessDialog):
         """
 
         if self.ui_stages_listbox.curselection():
-            i = int(self.ui_stages_listbox.curselection())
-            last_index = len(self.ui_stages_listbox.get(0, 'end')) - 1
-            if i != last_index:
+            i = (self.ui_stages_listbox.curselection()[0])
+            if i != len(self.ui_stages_listbox.get(0, 'end')) - 1:
                 move_item = self.ui_stages_listbox.get(i+1)
                 self.ui_stages_listbox.delete(i+1)
                 self.ui_stages_listbox.insert(i, move_item)
@@ -536,7 +517,7 @@ class OpenMM(ModelessDialog):
 
         # Create window
         self.ui_stdout_window = tk.Toplevel()
-        self.Center('ui_stdout_window')
+        self.Center(self.ui_stdout_window)
         self.ui_stdout_window.title("Stdout Reporters")
 
         # Create frame and lframe
@@ -577,28 +558,28 @@ class OpenMM(ModelessDialog):
         """
         Close window while pass reporters to the listbox
         """
-        getattr(self, listbox).delete(0, 'end')
+        widget = getattr(self, listbox)
+        widget.delete(0, 'end')
         for item in self.reporters:
-            if getattr(self, 'var_' + item).get() == item:
-                getattr(self, listbox).insert(
-                    'end', getattr(self, 'var_' + item).get())
-        if getattr(self, listbox).get(0, 'end'):
+            variable = getattr(self, 'var_' + item)
+            if variable.get() == item:
+                widget.insert('end', variable.get())
+        if widget.get(0, 'end'):
             self.var_verbose = True
         else:
             self.var_verbose = False
         self.ui_stdout_window.withdraw()
 
-    def _not_open_2_times(self, window, function): # What?!
+    def _open_window(self, window, function):
         """
         Get sure the window is not opened
         a second time
         """
         try:
-            print("a")
-            getattr(self, window).state()
-            getattr(self, window).deiconify()
+            var_window = getattr(self, window)
+            var_window.state()
+            var_window.deiconify()
         except (AttributeError, tk.TclError):
-            print("b")
             return function()
 
     def _fill_ui_output_opt_window(self):
@@ -607,7 +588,7 @@ class OpenMM(ModelessDialog):
         """
         # Create window
         self.ui_output_opt = tk.Toplevel()
-        self.Center('ui_output_opt')
+        self.Center(self.ui_output_opt)
         self.ui_output_opt.title("Output Options")
 
         # Create frame and lframe
@@ -625,14 +606,20 @@ class OpenMM(ModelessDialog):
             self.ui_output_opt_frame, textvariable=self.var_traj_atoms)
         self.ui_output_opt_restart_every_Entry = tk.Entry(
             self.ui_output_opt_frame, textvariable=self.var_restart_every)
+        self.ui_output_opt_traj_directory = tk.Entry(
+            self.ui_output_opt_frame, textvariable=self.var_traj_directory)
+        self.ui_output_opt_stdout_directory = tk.Entry(
+            self.ui_output_opt_frame, textvariable=self.var_stdout_directory)
+
+
 
         # Grid them
-        self.output_opt_grid = [['Trajectory\nNew Every',
-                                self.ui_output_opt_traj_new_every_Entry],
-                                ['Trajectory\nAtom Subset',
-                                 self.ui_output_opt_traj_atom_subset_Entry],
-                                ['Restart Every', self.ui_output_opt_restart_every_Entry]]
-        self.auto_grid(self.ui_output_opt_frame_label, self.output_opt_grid)
+        output_opt_grid = [['Trajectory\nNew Every', self.ui_output_opt_traj_new_every_Entry,
+                            'Trajectory\nOutput Name', self.ui_output_opt_traj_directory],
+                           ['Trajectory\nAtom Subset', self.ui_output_opt_traj_atom_subset_Entry,
+                            'Stdout\n Output Directory', self.ui_output_opt_stdout_directory],
+                           ['Restart Every', self.ui_output_opt_restart_every_Entry]]
+        self.auto_grid(self.ui_output_opt_frame_label, output_opt_grid)
 
     def _fill_ui_stages_window(self):
         """
@@ -642,10 +629,10 @@ class OpenMM(ModelessDialog):
 
         # creating window
         self.ui_stages_window = tk.Toplevel()
-        self.Center('ui_stages_window')
+        self.Center(self.ui_stages_window)
         self.ui_stages_window.title("MD Stages")
 
-        # Creating tabs
+        # Creating tabs---> How to fix (tried to do it with list not working)
         ui_note = ttk.Notebook(self.ui_stages_window)
         titles = ["Stage", "Temperature & Pressure",
                   "Constrains & Minimization", "MD Final Settings"]
@@ -668,9 +655,9 @@ class OpenMM(ModelessDialog):
             self.ui_tab_1, text='Save and Close',
             command=self._save_ui_stages_window)
 
-        self.stage_grid = [['Stage Name', self.ui_stage_name_Entry],
-                           ['', self.ui_stage_close, self.ui_stage_save_Button]]
-        self.auto_grid(self.ui_stage_name_lframe, self.stage_grid)
+        stage_grid = [['Stage Name', self.ui_stage_name_Entry],
+                      ['', self.ui_stage_close, self.ui_stage_save_Button]]
+        self.auto_grid(self.ui_stage_name_lframe, stage_grid)
 
         # tab_2
         self.ui_stage_temp_lframe = tk.LabelFrame(
@@ -693,8 +680,8 @@ class OpenMM(ModelessDialog):
             self.ui_tab_2, text="Barostat", variable=self.var_stage_barostat,
             onvalue=True, offvalue=False,
             command=lambda: self._check_settings(
-                'var_stage_barostat', 'ui_stage_pressure_Entry',
-                'ui_stage_barostat_steps_Entry', True))
+                self.var_stage_barostat, True, self.ui_stage_pressure_Entry,
+                self.ui_stage_barostat_steps_Entry))
         self.pres_grid = [[self.ui_stage_barostat_check, ''],
                           ['Pressure', self.ui_stage_pressure_Entry],
                           ['Barostat Every', self.ui_stage_barostat_steps_Entry]]
@@ -716,25 +703,30 @@ class OpenMM(ModelessDialog):
             onvalue='Backbone', offvalue=None)
         self.ui_stage_constrother_Entry = tk.Entry(
             self.ui_tab_3, width=20, textvariable=self.var_stage_constrother)
-        self.constr_grid = [[self.ui_stage_constrprot_check],
+        constraints_grid = [[self.ui_stage_constrprot_check],
                             [self.ui_stage_constrback_check],
                             ['Other', self.ui_stage_constrother_Entry]]
-        self.auto_grid(self.ui_stage_constr_lframe, self.constr_grid)
+        self.auto_grid(self.ui_stage_constr_lframe, constraints_grid)
 
         self.ui_stage_minimiz_check = ttk.Checkbutton(
-            self.ui_tab_3, text="Minimization", variable=self.var_stage_minimiz, offvalue=False,
+            self.ui_tab_3, text="Minimization",
+            variable=self.var_stage_minimiz, offvalue=False,
             onvalue=True, command=lambda: self._check_settings(
-                'var_stage_minimiz', 'ui_stage_minimiz_maxsteps_Entry', 'ui_stage_minimiz_tolerance_Entry', True))
+                self.var_stage_minimiz, True,
+                self.ui_stage_minimiz_maxsteps_Entry,
+                self.ui_stage_minimiz_tolerance_Entry))
         self.ui_stage_minimiz_maxsteps_Entry = tk.Entry(
-            self.ui_tab_3, state='disabled', textvariable=self.var_stage_minimiz_maxsteps)
+            self.ui_tab_3, state='disabled',
+            textvariable=self.var_stage_minimiz_maxsteps)
         self.ui_stage_minimiz_tolerance_Entry = tk.Entry(
-            self.ui_tab_3, state='disabled', textvariable=self.var_stage_minimiz_tolerance)
+            self.ui_tab_3, state='disabled',
+            textvariable=self.var_stage_minimiz_tolerance)
 
-        self.minimiz_grid = [[self.ui_stage_minimiz_check, ''],
-                             ['Max Steps',
-                                 self.ui_stage_minimiz_maxsteps_Entry],
-                             ['Tolerance', self.ui_stage_minimiz_tolerance_Entry]]
-        self.auto_grid(self.ui_stage_minim_lframe, self.minimiz_grid)
+        minimiz_grid = [[self.ui_stage_minimiz_check, ''],
+                        ['Max Steps',
+                         self.ui_stage_minimiz_maxsteps_Entry],
+                        ['Tolerance', self.ui_stage_minimiz_tolerance_Entry]]
+        self.auto_grid(self.ui_stage_minim_lframe, minimiz_grid)
 
         # Tab 4
         self.ui_stage_mdset_lframe = tk.LabelFrame(self.ui_tab_4)
@@ -743,10 +735,10 @@ class OpenMM(ModelessDialog):
         self.ui_stage_steps_Entry = tk.Entry(
             self.ui_tab_4, textvariable=self.var_stage_steps)
         self.ui_stage_dcd_check = tk.Checkbutton(
-            self.ui_tab_4, text='DCD trajectory reports', variable=self.var_stage_dcd,
-            onvalue='DCD', offvalue=False,
+            self.ui_tab_4, text='DCD trajectory reports',
+            variable=self.var_stage_dcd, onvalue='DCD', offvalue=False,
             command=lambda: self._check_settings(
-                'var_stage_dcd', 'ui_stage_reportevery_Entry', 'DCD'))
+                self.var_stage_dcd, 'DCD', self.ui_stage_reportevery_Entry))
         self.ui_stage_reportevery_Entry = tk.Entry(
             self.ui_tab_4, textvariable=self.var_stage_reportevery, state='disabled')
 
@@ -758,36 +750,49 @@ class OpenMM(ModelessDialog):
 
     def _save_ui_stages_window(self):
         """
-        Save stage on the main listbox while closing the window and reset all variables
+        Save stage on the main listbox while closing the window
+        reset all variables and create a dict with all stages
         """
-
         if not self.var_stage_name.get():
             self.ui_stage_name_Entry.configure(background='red')
         else:
             self.ui_stages_listbox.insert('end', self.var_stage_name.get())
             self.ui_stages_window.withdraw()
-            setattr(self, 'stage_' + self.var_stage_name.get(), [])
-            for variable in self.stage_variables:
-                setattr(self, variable + '_' + self.var_stage_name.get(),
-                        getattr(self, variable).get())
-                getattr(self, 'stage_' + self.var_stage_name.get()).append(
-                    getattr(self, variable + '_' + self.var_stage_name.get()))
-            self.names.append(self.var_stage_name.get())
+            # Create Stage Dictionary
+            stage_dict = setattr(self, self.var_stage_name.get(), {})
+            stage_dict = {
+                'name': self.var_stage_name.get(),
+                'temperature': self.var_stage_temp.get(),
+                'pressure': self.var_stage_pressure.get(),
+                'barostat_every': self.var_stage_pressure_steps.get(),
+                'barostat': self.var_stage_barostat.get(),
+                'constraint': [self.var_stage_constrback.get(),
+                               self.var_stage_constrprot.get(),
+                               self.var_stage_constrother.get()],
+                'minimization': self.var_stage_minimiz.get(),
+                'minimization_max_steps': self.var_stage_minimiz_maxsteps.get(),
+                'minimization_tolerance': self.var_stage_minimiz_tolerance.get(),
+                'reporters': self.var_stage_dcd.get(),
+                'steps': self.var_stage_steps.get(),
+                'report_every': self.var_stage_reportevery.get()}
+            self.stages.append(stage_dict)
+            # Reset Variables
             for item in self.stages_strings:
                 getattr(self, item + '_Entry').delete(0, 'end')
             for item in self.check_variables:
                 getattr(self, item).set(False)
+            self.set_stage_variables()
 
     def _close_ui_stages_window(self):
         """
         Close window ui_stages_window and reset all variables
         """
         self.ui_stages_window.withdraw()
-
         for item in self.stages_strings:
             getattr(self, item + '_Entry').delete(0, 'end')
         for item in self.check_variables:
             getattr(self, item).set(False)
+        self.set_stage_variables()
 
     def _fill_ui_advopt_window(self):
         """
@@ -797,7 +802,7 @@ class OpenMM(ModelessDialog):
 
         # Create TopLevel window
         self.ui_advopt_window = tk.Toplevel()
-        self.Center('ui_advopt_window')
+        self.Center(self.ui_advopt_window)
         self.ui_advopt_window.title("Advanced Options")
 
         # Create Tabs
@@ -821,8 +826,9 @@ class OpenMM(ModelessDialog):
             self.ui_tab_1, text="Barostat", variable=self.var_advopt_barostat,
             onvalue=True, offvalue=False,
             command=lambda: self._check_settings(
-                'var_advopt_barostat', 'ui_advopt_pressure_Entry',
-                'ui_advopt_barostat_steps_Entry', True))
+                self.var_advopt_barostat, True,
+                self.ui_advopt_pressure_Entry,
+                self.ui_advopt_barostat_steps_Entry))
         self.ui_advopt_pressure_Entry = tk.Entry(
             self.ui_tab_1, state='disabled',
             textvariable=self.var_advopt_pressure)
@@ -830,12 +836,12 @@ class OpenMM(ModelessDialog):
             self.ui_tab_1, state='disabled',
             textvariable=self.var_advopt_pressure_steps)
 
-        self.advopt_grid = [['Friction', self.ui_advopt_friction_Entry],
-                            ['Temperature', self.ui_advopt_temp_Entry],
-                            [self.ui_advopt_barostat_check, ''],
-                            ['Pressure', self.ui_advopt_pressure_Entry],
-                            ['Maximum Steps', self.ui_advopt_barostat_steps_Entry]]
-        self.auto_grid(self.ui_advopt_conditions_lframe, self.advopt_grid)
+        advopt_grid = [['Friction', self.ui_advopt_friction_Entry],
+                       ['Temperature', self.ui_advopt_temp_Entry],
+                       [self.ui_advopt_barostat_check, ''],
+                       ['Pressure', self.ui_advopt_pressure_Entry],
+                       ['Maximum Steps', self.ui_advopt_barostat_steps_Entry]]
+        self.auto_grid(self.ui_advopt_conditions_lframe, advopt_grid)
 
         # tab_2
         self.ui_advopt_system_lframe = tk.LabelFrame(
@@ -859,13 +865,13 @@ class OpenMM(ModelessDialog):
         self.ui_advopt_rigwat_combo.config(
             values=('True', 'False'))
 
-        self.advopt_grid = [['Non Bonded Method', self.ui_advopt_nbm_combo],
-                            ['Edwald Tolerance',
-                                self.ui_advopt_edwalderr_Entry],
-                            ['Non Bonded Cutoff', self.ui_advopt_cutoff_Entry],
-                            ['Constraints', self.ui_advopt_constr_combo],
-                            ['Rigid Water', self.ui_advopt_rigwat_combo]]
-        self.auto_grid(self.ui_advopt_system_lframe, self.advopt_grid)
+        advopt_grid = [['Non Bonded Method', self.ui_advopt_nbm_combo],
+                       ['Edwald Tolerance',
+                        self.ui_advopt_edwalderr_Entry],
+                       ['Non Bonded Cutoff', self.ui_advopt_cutoff_Entry],
+                       ['Constraints', self.ui_advopt_constr_combo],
+                       ['Rigid Water', self.ui_advopt_rigwat_combo]]
+        self.auto_grid(self.ui_advopt_system_lframe, advopt_grid)
         # Events
         self.ui_advopt_nbm_combo.bind(
             "<<ComboboxSelected>>", self._PME_settings)
@@ -884,12 +890,12 @@ class OpenMM(ModelessDialog):
         self.ui_advopt_precision_combo.config(
             values=('single', 'mixed', 'double'))
 
-        self.advopt_platform_grid = [['', ''],
-                                     ['Platform',
-                                         self.ui_advopt_platform_combo],
-                                     ['Precision', self.ui_advopt_precision_combo]]
+        advopt_grid_hardware = [['', ''],
+                                ['Platform',
+                                 self.ui_advopt_platform_combo],
+                                ['Precision', self.ui_advopt_precision_combo]]
         self.auto_grid(
-            self.ui_advopt_hardware_lframe, self.advopt_platform_grid)
+            self.ui_advopt_hardware_lframe, advopt_grid_hardware)
 
     def _PME_settings(self, event):
         """
@@ -905,7 +911,7 @@ class OpenMM(ModelessDialog):
 
         # Create TopLevel window
         self.ui_input_opt_window = tk.Toplevel()
-        self.Center('ui_input_opt_window')
+        self.Center(self.ui_input_opt_window)
         self.ui_input_opt_window.title("Advanced Options")
         # Create lframe
         self.ui_advopt_input_opt_lframe = tk.LabelFrame(
@@ -928,16 +934,16 @@ class OpenMM(ModelessDialog):
             self.ui_input_opt_window, text='...',
             command=lambda: self._browse_file(self.var_input_checkpoint, 'xml', 'rst'))
 
-        self.input_grid = [['Velocities', self.ui_input_vel_Entry, self.ui_input_vel_browse,
-                            'Box', self.ui_input_box_Entry, self.ui_input_box_browse],
-                           ['Restart File', self.ui_input_checkpoint_Entry,
-                           self.ui_input_checkpoint_browse]]
-        self.auto_grid(self.ui_advopt_input_opt_lframe, self.input_grid)
+        input_grid = [['Velocities', self.ui_input_vel_Entry, self.ui_input_vel_browse,
+                       'Box', self.ui_input_box_Entry, self.ui_input_box_browse],
+                      ['Restart File', self.ui_input_checkpoint_Entry,
+                       self.ui_input_checkpoint_browse]]
+        self.auto_grid(self.ui_advopt_input_opt_lframe, input_grid)
 
     def _fill_ui_add_forcefields(self):
         # Create TopLevel window
         self.ui_add_forcefields = tk.Toplevel()
-        self.Center('ui_add_forcefields')
+        self.Center(self.ui_add_forcefields)
         self.ui_add_forcefields.title("Include Forcefields")
         # Create lframe
         self.ui_add_forcefields_lframe = tk.LabelFrame(
@@ -952,11 +958,11 @@ class OpenMM(ModelessDialog):
         self.ui_add_forcefields_remove = tk.Button(
             self.ui_add_forcefields, text='-',
             command=lambda: self._remove_stage('ui_add_forcefields_List'))
-        self.add_forcefields_grid = [[
+        add_forcefields_grid = [[
             'External\nForcefields', self.ui_add_forcefields_List,
             (self.ui_add_forcefields_include, self.ui_add_forcefields_remove)]]
         self.auto_grid(
-            self.ui_add_forcefields_lframe, self.add_forcefields_grid)
+            self.ui_add_forcefields_lframe, add_forcefields_grid)
         self.ui_add_forcefields_List.configure(width=20)
 
     def create_extforcefield_add(self):
@@ -964,7 +970,7 @@ class OpenMM(ModelessDialog):
             ('Xml File', '*.xml'), ('Frcmod File', '*.frcmod')))
         self.ui_add_forcefields_List.insert('end', path)
 
-    def _check_settings(self, *args): # This whole args thing is messy! Think another way.
+    def _check_settings(self, var, onvalue, *args):
         """
         Enable or Disable several settings
         depending on other Checkbutton value
@@ -974,21 +980,15 @@ class OpenMM(ModelessDialog):
         args[0]: tk widget Checkbutton where we set an options
         args[-1]: onvalue Checkbutton normally set as 1
         args[1],args[2]...: tk widgets to enable or disabled
-    
+
         """
-        if getattr(self, args[0]).get() == args[-1]:
-            for x in args:
-                if x == args[-1] or x == args[0]:
-                    pass
-                else:
-                    getattr(self, x).configure(state='normal')
+        if var.get() == onvalue:
+            for entry in args:
+                entry.configure(state='normal')
 
         else:
-            for x in args:
-                if x == args[-1] or x == args[0]:
-                    pass
-                else:
-                    getattr(self, x).configure(state='disabled')
+            for entry in args:
+                entry.configure(state='disabled')
 
 
 # Script Functions
@@ -1018,7 +1018,8 @@ class OpenMM(ModelessDialog):
 
         """
         for column in resize_columns:
-            parent.columnconfigure(column, weight=int(100 / len(resize_columns)))
+            parent.columnconfigure(
+                column, weight=int(100 / len(resize_columns)))
         _kwargs = {'padx': 2, 'pady': 2, 'ipadx': 2, 'ipady': 2}
         _kwargs.update(options)
         for i, row in enumerate(grid):
@@ -1056,15 +1057,16 @@ class OpenMM(ModelessDialog):
             self._fix_styles(widget)
 
     def Center(self, window):
-        # Why don't you pass the window object instead of its attrname?
-        # Update "requested size" from geometry manager
-        getattr(self, window).update_idletasks()
-        x = (getattr(self, window).winfo_screenwidth() -
-             getattr(self, window).winfo_reqwidth()) / 2
-        y = (getattr(self, window).winfo_screenheight() -
-             getattr(self, window).winfo_reqheight()) / 2
-        getattr(self, window).geometry("+%d+%d" % (x, y))
-        getattr(self, window).deiconify()
+        """
+        Update "requested size" from geometry manager
+        """
+        window.update_idletasks()
+        x = (window.winfo_screenwidth() -
+             window.winfo_reqwidth()) / 2
+        y = (window.winfo_screenheight() -
+             window.winfo_reqheight()) / 2
+        window.geometry("+%d+%d" % (x, y))
+        window.deiconify()
 
     def Close(self):
         """
@@ -1074,3 +1076,18 @@ class OpenMM(ModelessDialog):
         ui = None
         ModelessDialog.Close(self)
         self.destroy()
+
+    def set_stage_variables(self):
+        self.var_stage_temp.set(300)
+        self.var_stage_minimiz.set(False)
+        self.var_stage_minimiz_maxsteps.set(10000)
+        self.var_stage_minimiz_tolerance.set(10)
+        self.var_stage_constrprot.set(None)
+        self.var_stage_constrback.set(None)
+        self.var_stage_steps.set(10000)
+        self.var_stage_barostat.set(False)
+        self.var_stage_pressure.set(self.var_advopt_pressure.get())
+        self.var_stage_pressure_steps.set(self.var_advopt_pressure_steps.get())
+        self.var_stage_dcd.set(False)
+        self.var_stage_reportevery.set(1000)
+        self.var_stage_constrother.set('None')
