@@ -5,10 +5,7 @@
 from __future__ import print_function, division
 # Python stdlib
 import os
-import collections
 import contextlib
-# Chimera stuff
-# Additional 3rd parties
 # Own
 import gui
 
@@ -38,19 +35,16 @@ class Controller(object):
 
     def set_mvc(self):
         # Tie model and gui
-        self.model.variables_keys = list(self.model.variables.keys())
-        for item in self.model.variables_keys:
-            with ignored(AttributeError):
-                var = getattr(self.model, '_' + item)
-                var.trace(lambda *args: setattr(self.model, item, var.get()))
-
+        self.model.variables_keys = self.model.variables.keys()
+        with ignored(AttributeError):
+            for item in self.model.variables_keys:
+                var = getattr(self.model, '_' + item, False)
+                var.trace(lambda item=item, value=var.get():
+                          setattr(self.model, item, value))
         self.gui.buttonWidgets['Run'].configure(command=self.run)
 
     def run(self):
         self.model.parse()
-        print(self.model.variables)
-        print('\n')
-        return
 
 
 class Model(object):
@@ -65,12 +59,12 @@ class Model(object):
 
     def __init__(self, gui, *args, **kwargs):
         self.gui = gui
-        self.variables = collections.OrderedDict()
-        self.variables_stage = collections.OrderedDict()
         self.variables = {'path': None, 'positions': None, 'forcefield': None,
                           'charmm_parameters': None, 'vel': None, 'box': None,
-                          'restart': None, 'stdout': None, 'mdtraj' : None,
-                          'trajectory_every': None, 'output': None, 'integrator': None,                          'nonbondedMethod': None, 'nonbondedCutoff': None, 'ewaldErrorTolerance': None,
+                          'restart': None, 'trajectory_every': None,
+                          'output': None, 'stdout':None, 'integrator': None,
+                          'nonbondedMethod': None, 'nonbondedCutoff': None,
+                          'ewaldErrorTolerance': None, 'mdtraj':None,
                           'constraints': None, 'rigidWater': False, 'platform':None,
                           'precision':None, 'timestep': None, 'barostat': False,
                           'temperature': None, 'friction': None,'pressure': None,
@@ -78,48 +72,27 @@ class Model(object):
                           'trajectory_every': None, 'trajectory_new_every': None,
                           'restart_every': None, 'trajectory_atom_subset': None,
                           'report': True, 'trajectory': None}
-
-        self.variables_stage = {'name': None, 'temperature': None, 'pressure': None,
-                                'barostat_every': None, 'barostat': False,
-                                'constraint': None, 'constraint2': None,
-                                'constraint3':None, 'minimization': False,
-                                'minimization_max_steps': None,
-                                'minimization_tolerance': None, 'reporters': False,
-                                'steps': None, 'report_every': None }
+        self.stages_name = []
 
     def parse(self):
+        self.retrieve_settings()
+        self.stages
+        print(self.variables.items())
+        print(self.stages)
 
-        for item in self.variables.keys():
-            self.variables[item] = getattr(self, item)
-
-        try:
-            if all(v for v in self.variables.viewvalues()):  # Python2.7
-                return self.variables.values()
-
-        except AttributeError:
-            if all(v for v in self.variables.values()):  # Python 3
-                return self.variables.values()
-
-        self.stages()
-
+    @property
     def stages(self):
-        for name in self.gui.names:
-            for i, variable in enumerate(getattr(self.gui, 'stage_' + name)):
-                key = sorted(self.variables_stage.keys())
-                self.variables_stage[key[i]] = variable
-            setattr(self, 'variable_stage_' + name, self.variables_stage.copy())
-            print(getattr(self, 'variable_stage_' + name))
-            print('\n')
+        return self.gui.stages
 
     @property
     def path(self):
-        return self.gui.var__path.get()
+        return self.gui.var_path.get()
 
     @path.setter
     def path(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var__path.set(value)
+        self.gui.var_path.set(value)
 
     @property
     def positions(self):
@@ -129,25 +102,22 @@ class Model(object):
     def positions(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var_positions(value)
+        self.gui.var_positions.set(value)
 
     @property
     def forcefield(self):
-        forcefields1 = [os.path.join(os.path.dirname(os.path.realpath(
-            self.gui.var_forcefield.get() + '.xml')),
+        forcefields = [os.path.join(os.path.dirname(
+            self.gui.var_forcefield.get() + '.xml'),
             self.gui.var_forcefield.get() + '.xml'),
             self.gui.var_external_forc.get()]
-        self.forcefields = forcefields1 + list(
+        self.forcefields = forcefields + list(
             self.gui.var_forcefield_external.get())
         return self.forcefields
-    """No funciona real path"""
 
-    """@path.setter
-    def path(self, value):
-        for f in forcefields:
-            if not os.path.isfile(value):
-                raise ValueError('Cannot access file {}'.format(value))
-            setattr(self, .forcefield,value)"""
+    @forcefield.setter
+    def forcefield(self, value):
+        self.gui.var_forcefield_external.set(value)
+        self.gui.var_forcefield.set(value)
 
     @property
     def charmm_parameters(self):
@@ -191,19 +161,19 @@ class Model(object):
 
     @property
     def stdout(self):
-        return (self.gui.var_output.get() + '/stdout')
+        return os.path.join(self.gui.var_output.get(), self.gui.var_stdout_directory.get())
 
     @stdout.setter
     def stdout(self, value):
-        self.gui.var_output.set(value)
+        self.gui.var_stdout_directory.set(value)
 
     @property
     def mdtraj(self):
-        return (self.gui.var_output.get() + '/mdtraj')
+        return os.path.join(self.gui.var_output.get(), self.gui.var_traj_directory.get())
 
     @mdtraj.setter
     def mdtraj(self, value):
-        self.gui.var_output.set(value)
+        self.gui.var_traj_directory.set(value)
 
     @property
     def trajectory_every(self):
@@ -395,33 +365,11 @@ class Model(object):
             return False
         else:
             return True
-    """
-    Stages
 
-    @property
-    def minimization(self):
-        return self.gui.stage_minimiz.get()
-
-    @minimization.setter
-    def minimization(self, value):
-        self.gui.stage_minimiz.set(value)
-
-    @property
-    def tolerance(self):
-        return self.gui.stage_minimiz_tolerance.get()
-
-    @tolerance.setter
-    def tolerance(self, value):
-        self.gui.stage_minimiz_tolerance.set(value)
-
-    @property
-    def max_iterations(self):
-        return self.gui.stage_minimiz_maxsteps.get()
-
-    @max_iterations.setter
-    def max_iterations(self, value):
-        self.gui.stage_minimiz_maxsteps.set(value)    """
-
+    def retrieve_settings(self):
+        for key in self.variables:
+            self.variables[key] = getattr(self, key)
+        return self.variables.items()
 
 @contextlib.contextmanager
 def ignored(*exceptions):
