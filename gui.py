@@ -18,6 +18,9 @@ from chimera.baseDialog import ModelessDialog
 # Own
 from core import Controller, Model
 
+
+
+
 """
 The gui.py module contains the interface code, and only that.
 It should only 'draw' the window, and should NOT contain any
@@ -44,8 +47,8 @@ STYLES = {
 
     },
     tk.Checkbutton: {
-        'highlightbackground': chimera.tkgui.app.cget('bg'),
-        'activebackground': chimera.tkgui.app.cget('bg'),
+        #'highlightbackground': chimera.tkgui.app.cget('bg'),
+        #'activebackground': chimera.tkgui.app.cget('bg'),
     },
     MoleculeScrolledListBox: {
         'listbox_borderwidth': 1,
@@ -95,15 +98,15 @@ class OpenMM(ModelessDialog):
         self.title = 'Plume OpenMM'
 
         # OpenMM variables
-        self.entries = ('output', 'forcefield', 'integrator', 'external_forc',
+        self.entries = ('output', 'forcefield', 'integrator',
                         'parametrize_forc', 'md_reporters', 'stage_constrprot',
                         'stage_constrback', 'advopt_nbm', 'advopt_constr',
-                        'advopt_rigwat', 'stage_dcd', 'advopt_hardware',
+                        'stage_dcd', 'advopt_hardware', 'advopt_rigwat',
                         'advopt_precision', 'input_vel', 'input_box',
                         'input_checkpoint', 'positions', 'traj_atoms',
                         'barostat', 'stage_name', 'stage_constrother',
                         'path', 'path_crd', 'path_extinput_top',
-                        'path_extinput_crd', 'verbose', 'advopt_cutoff',
+                        'path_extinput_crd', 'verbose',
                         'forcefield_external', 'traj_directory',
                         'stdout_directory')
 
@@ -116,7 +119,7 @@ class OpenMM(ModelessDialog):
         self.floats = ('tstep', 'stage_pressure',
                        'stage_temp', 'stage_minimiz_tolerance',
                        'advopt_temp', 'advopt_pressure',
-                       'advopt_friction', 'advopt_edwalderr')
+                       'advopt_friction', 'advopt_edwalderr', 'advopt_cutoff')
 
         self.integer = ('output_traj_interval', 'output_stdout_interval',
                         'traj_new_every', 'restart_every',
@@ -162,9 +165,10 @@ class OpenMM(ModelessDialog):
         self._basis_set_dialog = None
         self.ui_labels = {}
         self.dict_stage = {}
-        self.input_option = {'padx': 10, 'pady': 10}
+        self.style_option = {'padx': 10, 'pady': 10}
         self.names = []
         self.stages = []
+        self.additional_force=[]
         self.stages_strings = (
             'ui_stage_barostat_steps', 'ui_stage_pressure',
             'ui_stage_temp', 'ui_stage_minimiz_maxsteps',
@@ -210,6 +214,7 @@ class OpenMM(ModelessDialog):
         """
 
         # Create main window
+
         self.canvas = tk.Frame(parent)
         self.canvas.pack(expand=True, fill='both')
 
@@ -241,7 +246,7 @@ class OpenMM(ModelessDialog):
             command=lambda: self._open_window(
                 'ui_input_opt_window', self._fill_ui_input_opt_window))
         self.ui_model_pdb_sanitize = tk.Button(
-            self.ui_input_frame, text="Sanitize\nModel")
+            self.ui_input_frame, text="Sanitize\nModel" )
         self.pdb_grid = [[self.ui_model_pdb_show],
                          [(self.ui_model_pdb_options,
                            self.ui_model_pdb_sanitize)]]
@@ -252,16 +257,13 @@ class OpenMM(ModelessDialog):
             command=self._include_amber_model)
         self.ui_model_extinput_show = tk.Listbox(
             self.ui_input_frame, listvariable=self.var_path_extinput_top)
-        self.ui_model_extinput_options = tk.Button(
+        self.ui_model_extstyle_options = tk.Button(
             self.ui_input_frame, text="Advanced\nOptions",
             command=lambda: self._open_window(
                 'ui_input_opt_window', self._fill_ui_input_opt_window))
-        self.ui_model_extinput_sanitize = tk.Button(
-            self.ui_input_frame, text="Sanitize\nModel")
         extinput_grid = [[self.ui_model_extinput_show],
-                         [(self.ui_model_extinput_options,
-                           self.ui_model_extinput_sanitize)],
-                         [self.ui_model_extinput_add]]
+                         [(self.ui_model_extstyle_options,
+                           self.ui_model_extinput_add)]]
         self.auto_grid(self.ui_tab_2, extinput_grid)
 
         # Fill Output frame
@@ -305,16 +307,10 @@ class OpenMM(ModelessDialog):
             self.canvas, text='+',
             command=lambda: self._open_window(
                 'ui_add_forcefields', self._fill_ui_add_forcefields))
-        self.ui_forcefield_frcmod = tk.Button(
-            self.canvas, text='...',
-            command=lambda: self._browse_file(
-                self.var_external_forc, 'frcmod', ''))
         self.ui_forcefield_charmmpar = tk.Button(
             self.canvas, text='...', state='disabled',
             command=lambda: self._browse_file(
                 self.var_parametrize_forc, 'par', ''))
-        self.ui_forcefield_frcmod_entry = tk.Entry(
-            self.canvas, textvariable=self.var_external_forc)
         self.ui_forcefield_charmmpar_entry = tk.Entry(
             self.canvas, textvariable=self.var_parametrize_forc,
             state='disabled')
@@ -330,15 +326,13 @@ class OpenMM(ModelessDialog):
             command=lambda: self._open_window(
                 'ui_advopt_window', self._fill_ui_advopt_window))
         settings_grid = [['Forcefield', self.ui_forcefield_combo, self.ui_forcefield_add],
-                         ['External\nForcefield', self.ui_forcefield_frcmod_entry,
-                          self.ui_forcefield_frcmod],
                          ['Charmm\nParamaters', self.ui_forcefield_charmmpar_entry,
                           self.ui_forcefield_charmmpar],
                          ['Integrator', self.ui_integrator],
                          ['Time Step', self.ui_timestep_entry, self.ui_advanced_options]]
         self.auto_grid(self.ui_settings_frame, settings_grid)
 
-        # Fill Steady frame
+        # Fill Stages frame
 
         try:
             self.photo_down = tk.PhotoImage(
@@ -360,7 +354,7 @@ class OpenMM(ModelessDialog):
         self.ui_stages_listbox = tk.Listbox(self.ui_stage_frame, height=27)
         self.ui_stages_remove = tk.Button(
             self.canvas, text='-',
-            command=lambda: self._remove_stage('ui_stages_listbox'))
+            command=lambda: self._remove_stage('ui_stages_listbox', self.stages))
 
         stage_frame_widgets = [['ui_stages_down', 8, 4],
                                ['ui_stages_up', 6, 4],
@@ -369,10 +363,10 @@ class OpenMM(ModelessDialog):
         for item, row, column in stage_frame_widgets:
             getattr(self, item).grid(
                 in_=self.ui_stage_frame, row=row, column=column,
-                sticky='news', **self.input_option)
+                sticky='news', **self.style_option)
         self.ui_stages_listbox.grid(
             in_=self.ui_stage_frame, row=0, column=0, rowspan=10, columnspan=3,
-            sticky='news', **self.input_option)
+            sticky='news', **self.style_option)
         self.ui_stages_listbox.configure(background='white')
 
         # Grid Frames
@@ -463,28 +457,27 @@ class OpenMM(ModelessDialog):
         """
 
         if self.ui_note.index(self.ui_note.select()) == 0:
-            self.ui_forcefield_frcmod_entry.configure(state='normal')
             self.ui_forcefield_combo.configure(state='normal')
             self.ui_forcefield_charmmpar_entry.configure(state='disabled')
             self.ui_forcefield_charmmpar.configure(state='disabled')
             self.ui_forcefield_add.configure(state='normal')
-            self.ui_forcefield_frcmod.configure(state='normal')
         elif self.ui_note.index(self.ui_note.select()) == 1:
-            self.ui_forcefield_frcmod_entry.configure(state='disabled')
             self.ui_forcefield_combo.configure(state='disabled')
             self.ui_forcefield_charmmpar_entry.configure(state='normal')
             self.ui_forcefield_charmmpar.configure(state='normal')
             self.ui_forcefield_add.configure(state='disabled')
-            self.ui_forcefield_frcmod.configure(state='disabled')
 
-    def _remove_stage(self, listbox):
+    def _remove_stage(self, listbox, List):
         """
         Remove the selected stage from the stage listbox
         """
         widget = getattr(self, listbox)
-        if widget.curselection():
-            widget.delete(
-                widget.curselection())
+        selection = widget.curselection()
+        if selection:
+            selection_index = selection[0]
+            widget.delete(selection)
+            del List[selection_index]
+
 
     def _move_stage_up(self):
         """
@@ -497,6 +490,9 @@ class OpenMM(ModelessDialog):
                 move_item = self.ui_stages_listbox.get(i-1)
                 self.ui_stages_listbox.delete(i-1)
                 self.ui_stages_listbox.insert(i, move_item)
+                move_item = self.stages[i-1]
+                del self.stages[i-1]
+                self.stages.insert(i, move_item)
 
     def _move_stage_down(self):
         """
@@ -509,6 +505,9 @@ class OpenMM(ModelessDialog):
                 move_item = self.ui_stages_listbox.get(i+1)
                 self.ui_stages_listbox.delete(i+1)
                 self.ui_stages_listbox.insert(i, move_item)
+                move_item = self.stages[i+1]
+                del self.stages[i+1]
+                self.stages.insert(i, move_item)
 
     def _fill_ui_stdout_window(self):
         """
@@ -525,7 +524,7 @@ class OpenMM(ModelessDialog):
         self.ui_stdout_frame.pack()
         self.ui_stdout_frame_label = tk.LabelFrame(
             self.ui_stdout_frame, text='Real Time  Reporters')
-        self.ui_stdout_frame_label.grid(row=0, column=0, **self.input_option)
+        self.ui_stdout_frame_label.grid(row=0, column=0, **self.style_option)
 
         # Create Checkbuttons reporters and place them
         for i, item in enumerate(self.reporters):
@@ -537,11 +536,11 @@ class OpenMM(ModelessDialog):
             if i < 5:
                 item.grid(
                     in_=self.ui_stdout_frame_label, row=0, column=i,
-                    sticky='ew', **self.input_option)
+                    sticky='ew', **self.style_option)
             else:
                 item.grid(
                     in_=self.ui_stdout_frame_label, row=1, column=i-5,
-                    sticky='ew', **self.input_option)
+                    sticky='ew', **self.style_option)
 
         self.ui_stdout_close = tk.Button(
             self.ui_stdout_frame, text='close',
@@ -549,7 +548,7 @@ class OpenMM(ModelessDialog):
                 'ui_output_reporters_realtime'))
         self.ui_stdout_close.grid(
             in_=self.ui_stdout_frame_label, row=2, column=5,
-            sticky='ew', **self.input_option)
+            sticky='ew', **self.style_option)
         self._fix_styles(self.ui_stdout_close)
 
         self.ui_stdout_window.mainloop()
@@ -571,6 +570,7 @@ class OpenMM(ModelessDialog):
         self.ui_stdout_window.withdraw()
 
     def _open_window(self, window, function):
+        #selllllllllllfffffffffff
         """
         Get sure the window is not opened
         a second time
@@ -578,6 +578,13 @@ class OpenMM(ModelessDialog):
         try:
             var_window = getattr(self, window)
             var_window.state()
+            if window == 'ui_stages_window':
+                self.set_stage_variables()
+                self.ui_stage_minimiz_tolerance_Entry.configure(state='disabled')
+                self.ui_stage_minimiz_maxsteps_Entry.configure(state = 'disabled')
+                self.ui_stage_barostat_steps_Entry.configure(state='disabled') 
+                self.ui_stage_pressure_Entry.configure(state='disabled')
+                self.ui_stage_reportevery_Entry.configure(state='disabled')
             var_window.deiconify()
         except (AttributeError, tk.TclError):
             return function()
@@ -597,7 +604,7 @@ class OpenMM(ModelessDialog):
         self.ui_output_opt_frame_label = tk.LabelFrame(
             self.ui_output_opt_frame, text='Advanced Output Options')
         self.ui_output_opt_frame_label.grid(
-            row=0, column=0, **self.input_option)
+            row=0, column=0, **self.style_option)
 
         # Create Widgets
         self.ui_output_opt_traj_new_every_Entry = tk.Entry(
@@ -697,10 +704,10 @@ class OpenMM(ModelessDialog):
 
         self.ui_stage_constrprot_check = ttk.Checkbutton(
             self.ui_tab_3, text='Protein', variable=self.var_stage_constrprot,
-            onvalue='Protein', offvalue=None)
+            onvalue='Protein', offvalue='')
         self.ui_stage_constrback_check = ttk.Checkbutton(
             self.ui_tab_3, text='Bakcbone', variable=self.var_stage_constrback,
-            onvalue='Backbone', offvalue=None)
+            onvalue='Backbone', offvalue='')
         self.ui_stage_constrother_Entry = tk.Entry(
             self.ui_tab_3, width=20, textvariable=self.var_stage_constrother)
         constraints_grid = [[self.ui_stage_constrprot_check],
@@ -736,7 +743,7 @@ class OpenMM(ModelessDialog):
             self.ui_tab_4, textvariable=self.var_stage_steps)
         self.ui_stage_dcd_check = tk.Checkbutton(
             self.ui_tab_4, text='DCD trajectory reports',
-            variable=self.var_stage_dcd, onvalue='DCD', offvalue=False,
+            variable=self.var_stage_dcd, onvalue='DCD', offvalue='False',
             command=lambda: self._check_settings(
                 self.var_stage_dcd, 'DCD', self.ui_stage_reportevery_Entry))
         self.ui_stage_reportevery_Entry = tk.Entry(
@@ -756,32 +763,47 @@ class OpenMM(ModelessDialog):
         if not self.var_stage_name.get():
             self.ui_stage_name_Entry.configure(background='red')
         else:
+            self.ui_stage_name_Entry.configure(background='white')
             self.ui_stages_listbox.insert('end', self.var_stage_name.get())
             self.ui_stages_window.withdraw()
-            # Create Stage Dictionary
-            stage_dict = setattr(self, self.var_stage_name.get(), {})
-            stage_dict = {
-                'name': self.var_stage_name.get(),
-                'temperature': self.var_stage_temp.get(),
-                'pressure': self.var_stage_pressure.get(),
-                'barostat_every': self.var_stage_pressure_steps.get(),
-                'barostat': self.var_stage_barostat.get(),
-                'constraint': [self.var_stage_constrback.get(),
-                               self.var_stage_constrprot.get(),
-                               self.var_stage_constrother.get()],
-                'minimization': self.var_stage_minimiz.get(),
-                'minimization_max_steps': self.var_stage_minimiz_maxsteps.get(),
-                'minimization_tolerance': self.var_stage_minimiz_tolerance.get(),
-                'reporters': self.var_stage_dcd.get(),
-                'steps': self.var_stage_steps.get(),
-                'report_every': self.var_stage_reportevery.get()}
-            self.stages.append(stage_dict)
+
+            self.create_stage_dict()
+
             # Reset Variables
             for item in self.stages_strings:
                 getattr(self, item + '_Entry').delete(0, 'end')
             for item in self.check_variables:
                 getattr(self, item).set(False)
             self.set_stage_variables()
+
+    def create_stage_dict(self):
+
+            # Create Stage Dictionary for output
+            stage_dict = setattr(self, self.var_stage_name.get(), {})
+            # Save constraints as a list
+            constraint_variables = (self.var_stage_constrback.get(),
+                                    self.var_stage_constrprot.get(),
+                                    self.var_stage_constrother.get())
+            constraints= []
+            for item in constraint_variables:
+                if item:
+                    constraints.append(item)
+
+            stage_dict = {
+                'name': self.var_stage_name.get(),
+                'temperature': self.var_stage_temp.get(),
+                'pressure': self.var_stage_pressure.get(),
+                'barostat_every': self.var_stage_pressure_steps.get(),
+                'barostat': self.var_stage_barostat.get(),
+                'constrained_atoms': constraints,
+                'minimize': self.var_stage_minimiz.get(),
+                'minimization_max_iterations': self.var_stage_minimiz_maxsteps.get(),
+                'minimization_tolerance': self.var_stage_minimiz_tolerance.get(),
+                'trajectory': self.var_stage_dcd.get(),
+                'md_steps': self.var_stage_steps.get(),
+                'trajectory_step': self.var_stage_reportevery.get()}
+            self.stages.append(stage_dict)
+
 
     def _close_ui_stages_window(self):
         """
@@ -904,8 +926,10 @@ class OpenMM(ModelessDialog):
         """
         if self.var_advopt_nbm.get() == 'PME':
             self.ui_advopt_edwalderr_Entry.configure(state='normal')
+            self.var_advopt_edwalderr.set(0.001)
         else:
             self.ui_advopt_edwalderr_Entry.configure(state='disabled')
+            self.var_advopt_edwalderr.set(0)
 
     def _fill_ui_input_opt_window(self):
 
@@ -944,10 +968,10 @@ class OpenMM(ModelessDialog):
         # Create TopLevel window
         self.ui_add_forcefields = tk.Toplevel()
         self.Center(self.ui_add_forcefields)
-        self.ui_add_forcefields.title("Include Forcefields")
+        self.ui_add_forcefields.title("External Forcefield")
         # Create lframe
         self.ui_add_forcefields_lframe = tk.LabelFrame(
-            self.ui_add_forcefields, text='Add your Own Forcefields')
+            self.ui_add_forcefields, text='Add your Own Forcefield')
         self.ui_add_forcefields_lframe.pack(expand=True, fill='both')
         # Fill lframe
         self.ui_add_forcefields_List = tk.Listbox(
@@ -957,9 +981,9 @@ class OpenMM(ModelessDialog):
             command=self.create_extforcefield_add)
         self.ui_add_forcefields_remove = tk.Button(
             self.ui_add_forcefields, text='-',
-            command=lambda: self._remove_stage('ui_add_forcefields_List'))
+            command=lambda: self._remove_stage('ui_add_forcefields_List', self.additional_force))
         add_forcefields_grid = [[
-            'External\nForcefields', self.ui_add_forcefields_List,
+            'Xml:\nFrcmod', self.ui_add_forcefields_List,
             (self.ui_add_forcefields_include, self.ui_add_forcefields_remove)]]
         self.auto_grid(
             self.ui_add_forcefields_lframe, add_forcefields_grid)
@@ -968,7 +992,10 @@ class OpenMM(ModelessDialog):
     def create_extforcefield_add(self):
         path = filedialog.askopenfilename(initialdir='~/', filetypes=(
             ('Xml File', '*.xml'), ('Frcmod File', '*.frcmod')))
-        self.ui_add_forcefields_List.insert('end', path)
+        if path:
+            self.ui_add_forcefields_List.insert('end', path)
+            self.additional_force.append(path)
+
 
     def _check_settings(self, var, onvalue, *args):
         """
@@ -977,15 +1004,14 @@ class OpenMM(ModelessDialog):
 
         Parameters
         ----------
-        args[0]: tk widget Checkbutton where we set an options
-        args[-1]: onvalue Checkbutton normally set as 1
-        args[1],args[2]...: tk widgets to enable or disabled
+        var: tk widget Checkbutton where we set an options
+        onvalue: onvalue Checkbutton normally set as 1
+        args...: tk widgets to enable or disabled
 
         """
         if var.get() == onvalue:
             for entry in args:
                 entry.configure(state='normal')
-
         else:
             for entry in args:
                 entry.configure(state='disabled')
@@ -1081,13 +1107,13 @@ class OpenMM(ModelessDialog):
         self.var_stage_temp.set(300)
         self.var_stage_minimiz.set(False)
         self.var_stage_minimiz_maxsteps.set(10000)
-        self.var_stage_minimiz_tolerance.set(10)
-        self.var_stage_constrprot.set(None)
-        self.var_stage_constrback.set(None)
+        self.var_stage_minimiz_tolerance.set(0.0001)
+        self.var_stage_constrprot.set('')
+        self.var_stage_constrback.set('')
         self.var_stage_steps.set(10000)
         self.var_stage_barostat.set(False)
         self.var_stage_pressure.set(self.var_advopt_pressure.get())
         self.var_stage_pressure_steps.set(self.var_advopt_pressure_steps.get())
-        self.var_stage_dcd.set(False)
+        self.var_stage_dcd.set('False')
         self.var_stage_reportevery.set(1000)
-        self.var_stage_constrother.set('None')
+        self.var_stage_constrother.set('')
