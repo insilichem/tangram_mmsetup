@@ -15,6 +15,15 @@ import chimera
 import chimera.tkgui
 from chimera.widgets import MoleculeScrolledListBox
 from chimera.baseDialog import ModelessDialog
+from chimera import runCommand as rc
+from chimera import openModels
+
+# OpenMM package
+import simtk.openmm.app as app
+
+# Pdbfixer
+from pdbfixer import pdbfixer
+
 # Own
 from core import Controller, Model
 
@@ -88,7 +97,7 @@ class OpenMM(ModelessDialog):
     claim exclusive usage, use ModalDialog.
     """
 
-    buttons = ('Save Input', 'Schedule', 'Run', 'Close')
+    buttons = ('Save Input', 'Run', 'Close')
     default = None
     help = 'https://www.insilichem.com'
 
@@ -168,6 +177,7 @@ class OpenMM(ModelessDialog):
         self.style_option = {'padx': 10, 'pady': 10}
         self.names = []
         self.stages = []
+        self.sanitize = []
         self.additional_force=[]
         self.stages_strings = (
             'ui_stage_barostat_steps', 'ui_stage_pressure',
@@ -229,12 +239,12 @@ class OpenMM(ModelessDialog):
         # Fill frames
         # Fill Input frame
         # Creating tabs
-        self.ui_note = ttk.Notebook(self.ui_input_frame)
-        self.ui_tab_1 = tk.Frame(self.ui_note)
-        self.ui_tab_2 = tk.Frame(self.ui_note)
-        self.ui_note.add(self.ui_tab_1, text="Chimera", state="normal")
-        self.ui_note.add(self.ui_tab_2, text="External Input", state="normal")
-        self.ui_note.pack(expand=True, fill='both')
+        self.ui_input_note = ttk.Notebook(self.ui_input_frame)
+        self.ui_tab_1 = tk.Frame(self.ui_input_note)
+        self.ui_tab_2 = tk.Frame(self.ui_input_note)
+        self.ui_input_note.add(self.ui_tab_1, text="Chimera", state="normal")
+        self.ui_input_note.add(self.ui_tab_2, text="External Input", state="normal")
+        self.ui_input_note.pack(expand=True, fill='both')
 
         # Fill input frame
         # Create and grid tab 1, 2 and 3
@@ -246,7 +256,7 @@ class OpenMM(ModelessDialog):
             command=lambda: self._open_window(
                 'ui_input_opt_window', self._fill_ui_input_opt_window))
         self.ui_model_pdb_sanitize = tk.Button(
-            self.ui_input_frame, text="Sanitize\nModel" )
+            self.ui_input_frame, text="Sanitize\nModel", command=self.sanitize_model)
         self.pdb_grid = [[self.ui_model_pdb_show],
                          [(self.ui_model_pdb_options,
                            self.ui_model_pdb_sanitize)]]
@@ -379,28 +389,9 @@ class OpenMM(ModelessDialog):
             row=0, column=3, rowspan=2, sticky='new', padx=5, pady=5)
 
         # Events
-        self.ui_note.bind("<ButtonRelease-1>", self._forc_param)
-        self.ui_model_extinput_show.bind("<<ListboxSelect>>", self._get_path)
-        self.ui_model_pdb_show.bind("<<ListboxSelect>>", self._get_path)
+        self.ui_input_note.bind("<ButtonRelease-1>", self._forc_param)
 
     # Callbacks
-    def _get_path(self, event):
-        """
-        Save path and position variables
-        every single time an input Listbox
-        is selected.
-        """
-
-        widget = event.widget
-        if self.var_path_extinput_top.get():
-            if widget == self.ui_model_extinput_show:
-                self.var_path.set(self.ui_model_extinput_show.get(0))
-                self.var_positions = (self.ui_model_extinput_show.get(1))
-        if self.ui_model_pdb_show.getvalue():
-            if widget == self.ui_model_pdb_show:
-                # Pathname in Moleculescrollboxx???
-                self.var_path.set('path_pdb')
-                self.var_positions = None
 
     def _browse_file(self, var_1, file_type1, file_type2):
         """
@@ -456,12 +447,12 @@ class OpenMM(ModelessDialog):
         depending on user input choice
         """
 
-        if self.ui_note.index(self.ui_note.select()) == 0:
+        if self.ui_input_note.index(self.ui_input_note.select()) == 0:
             self.ui_forcefield_combo.configure(state='normal')
             self.ui_forcefield_charmmpar_entry.configure(state='disabled')
             self.ui_forcefield_charmmpar.configure(state='disabled')
             self.ui_forcefield_add.configure(state='normal')
-        elif self.ui_note.index(self.ui_note.select()) == 1:
+        elif self.ui_input_note.index(self.ui_input_note.select()) == 1:
             self.ui_forcefield_combo.configure(state='disabled')
             self.ui_forcefield_charmmpar_entry.configure(state='normal')
             self.ui_forcefield_charmmpar.configure(state='normal')
@@ -1016,8 +1007,64 @@ class OpenMM(ModelessDialog):
             for entry in args:
                 entry.configure(state='disabled')
 
+    def sanitize_model(self):
+        # Each model in different conformations
+        # Saving original paths
+        self.original_models = []
+        for i, model in enumerate(chimera.openModels.list()):
+            model_path = chimera.openModels.list()[i].openedAs[0]
+            self.original_models.append(model_path)
+        #Open Selected Molecule
+        model = self.ui_model_pdb_show.getvalue()
+        model_name = os.path.splitext(model.name)[0]
+        index = self.ui_model_pdb_show.index(self.ui_model_pdb_show.curselection())
+        modelfile_path = model.openedAs[0]
+        modelfile_extension = model.openedAs[1]
+        if modelfile_extension == 'PDB':
+            print('Sanitizing pdb ...')
+            output_file = str(os.path.join(self.var_output.get(), model_name + '_fixed.pdb'))
+            self.fix_pdb(modelfile_path, output_file)
+        else:
+            print('Sanitizing file ...')
+            output_file = str(os.path.join(self.var_output.get(), model_name + '_fixed.pdb'))
+            rc('write ' + str(molecule.id) + ' ' + output_file)#get model number
+            #self.fix_pdb(pdb_file)
+        for i,model in enumerate(self.original_models):
+            if i == index:
+                try:
+                    self.sanitize[i] = output_file
+                except IndexError:
+                    self.sanitize.insert(i, output_file)
+            else:
+                try:
+                    self.sanitize[i]
+                except IndexError:
+                    self.sanitize.insert(i, None)
 
-# Script Functions
+        print('self sanitiz')
+        print(self.sanitize)
+        print('self models')
+        print(self.original_models)
+
+
+
+    def fix_pdb(self, input_file, output_file):    
+        with open(input_file, 'r') as f:
+            fixer = pdbfixer.PDBFixer(pdbfile=f)
+        fixer.findMissingResidues()
+        missing_residues = fixer.missingResidues
+        print(missing_residues)
+        fixer.findMissingAtoms()
+        missing_atoms = fixer.missingAtoms
+        missing_terminals = fixer.missingTerminals
+        print(missing_atoms)
+        print(missing_terminals)
+        fixer.addMissingAtoms()
+        fixer.addMissingHydrogens(pH=2)
+        with open(output_file, 'w') as f:
+            app.PDBFile.writeFile(fixer.topology, fixer.positions, f)
+
+        # Script Functions
 
     def auto_grid(self, parent, grid, resize_columns=(1,), label_sep=':', **options):
         """
