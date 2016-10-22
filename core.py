@@ -7,6 +7,10 @@ from __future__ import print_function, division
 import os
 import contextlib
 import yaml
+
+# Chimera stuff
+import chimera
+
 # Own
 import gui
 
@@ -35,12 +39,15 @@ class Controller(object):
         self.set_mvc()
 
     def set_mvc(self):
+        self.gui.buttonWidgets['Save Input'].configure(command=self.saveinput)
         self.gui.buttonWidgets['Run'].configure(command=self.run)
 
-    def run(self):
+    def saveinput(self):
         self.model.parse()
         self.write()
 
+    def run(self):
+        self.saveinput()
         #Subproces
 
 
@@ -139,7 +146,23 @@ class Model(object):
 
     @property
     def topology(self):
-        return self.gui.var_path.get()
+        if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
+            if self.gui.ui_model_pdb_show.curselection():
+                index = self.gui.ui_model_pdb_show.index(self.gui.ui_model_pdb_show.curselection())
+                try:
+                    if self.gui.sanitize[index]:
+                        return self.gui.sanitize[index]
+                    else:
+                        return self.gui.original_models[index]
+                except IndexError:
+                    return chimera.openModels.list()[index].openedAs[0]
+
+        elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
+            if self.gui.ui_model_extinput_show.curselection():
+                return self.gui.var_path.get()
+
+
+
 
     @topology.setter
     def topology(self, value):
@@ -149,7 +172,12 @@ class Model(object):
 
     @property
     def positions(self):
-        return self.gui.var_positions
+        if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
+            if self.gui.ui_model_pdb_show.curselection():
+                return  None
+        elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
+            if self.gui.ui_model_extinput_show.curselection():
+                return self.gui.var_positions
 
     @positions.setter
     def positions(self, value):
