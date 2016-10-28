@@ -5,12 +5,10 @@
 from __future__ import print_function, division
 # Python stdlib
 import os
-import contextlib
 import yaml
-
+import subprocess
 # Chimera stuff
 import chimera
-
 # Own
 import gui
 
@@ -48,36 +46,32 @@ class Controller(object):
 
     def run(self):
         self.saveinput()
-        #Subproces
-
-
-
-
-
-
-
-
+        command = 'ommprotocol ' + self.filename
+        subprocess.Popen(command, shell=True)
 
     def write(self):
-        #Write input
-        filename = os.path.join(self.model.md_output['outputpath'], self.model.md_output['project_name']+'.yaml')
-        with open(filename, 'w') as f:
+        # Write input
+        self.filename = os.path.join(self.model.md_output['outputpath'],
+                                     self.model.md_output['project_name']+'.yaml')
+        with open(self.filename, 'w') as f:
             f.write('# Yaml input for OpenMM MD\n\n')
             f.write('# input\n')
             yaml.dump(self.model.md_input, f, default_flow_style=False)
             f.write('\n')
             f.write('# output\n')
             yaml.dump(self.model.md_output, f, default_flow_style=False)
-            f.write('\n# hardware\n')
-            yaml.dump(self.model.md_hardware, f, default_flow_style=False)
+            if self.model.md_hardware:
+                f.write('\n# hardware\n')
+                yaml.dump(self.model.md_hardware, f, default_flow_style=False)
             f.write('\n# conditions\n')
             yaml.dump(self.model.md_conditions, f, default_flow_style=False)
             f.write('\n# OpenMM system options\n')
             yaml.dump(self.model.md_systemoptions, f, default_flow_style=False)
-            f.write('\n\n# stages:\n')
+            f.write('\n\nstages:\n')
             for stage in self.model.stages:
-                yaml.dump(stage, f, indent=4, default_flow_style=False)
+                yaml.dump([stage], f, indent=8, default_flow_style=False)
                 f.write('\n')
+
 
 class Model(object):
 
@@ -98,7 +92,7 @@ class Model(object):
                          'velocities': None,
                          'box': None}
 
-        self.md_output={ 'project_name': 'sys',
+        self.md_output={ 'project_name': None,
                           'restart': None,
                           'trajectory_every': None,
                           'outputpath': None,
@@ -127,42 +121,28 @@ class Model(object):
                                  'constraints': None,
                                  'rigidWater': False}
 
-        self.stages_name = []
-        forcefields = []
-        additional_force = []
-
-    def parse(self):
-        self.reset_variables()
-        self.retrieve_settings()
-        self.retrieve_stages()
-
     @property
     def stages(self):
         return self.gui.stages
 
     @property
     def project_name(self):
-        return  'sys' #Aun Sin habilitar
+        return  self.gui.var_output_projectname.get()
 
     @property
     def topology(self):
         if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
-            if self.gui.ui_model_pdb_show.curselection():
-                index = self.gui.ui_model_pdb_show.index(self.gui.ui_model_pdb_show.curselection())
-                try:
-                    if self.gui.sanitize[index]:
-                        return self.gui.sanitize[index]
-                    else:
-                        return self.gui.original_models[index]
-                except IndexError:
-                    return chimera.openModels.list()[index].openedAs[0]
+            model = self.gui.ui_chimera_models.getvalue()
+            model_name = os.path.splitext(model.name)[0]
+            sanitized_path = str(os.path.join(self.gui.var_output.get(), model_name + '_fixed.pdb'))
+            
 
+            if os.path.isfile(sanitized_path):
+                return sanitized_path
+            else:
+                return model.openedAs[0]
         elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
-            if self.gui.ui_model_extinput_show.curselection():
                 return self.gui.var_path.get()
-
-
-
 
     @topology.setter
     def topology(self, value):
@@ -173,11 +153,9 @@ class Model(object):
     @property
     def positions(self):
         if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
-            if self.gui.ui_model_pdb_show.curselection():
-                return  None
+            return self.topology
         elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
-            if self.gui.ui_model_extinput_show.curselection():
-                return self.gui.var_positions
+            return self.gui.var_positions.get()
 
     @positions.setter
     def positions(self, value):
@@ -187,15 +165,11 @@ class Model(object):
 
     @property
     def forcefield(self):
-        forcefields = [self.gui.var_forcefield.get() + '.xml', ]
-        additional_force = self.gui.additional_force
-        self.forcefields = forcefields + additional_force
-        print(self.forcefields)
-        return self.forcefields
+        return [self.gui.var_forcefield.get() + '.xml', ] + self.gui.additional_force
 
     @forcefield.setter
     def forcefield(self, value):
-        self.gui.var_forcefield_external.set(value)
+        self.gui.additional_force.set(value)
         self.gui.var_forcefield.set(value)
 
     @property
@@ -230,21 +204,13 @@ class Model(object):
 
     @property
     def restart(self):
-        return self.gui.var_input_checkpoint.get()
+        return self.gui.var_output_restart.get()
 
     @restart.setter
     def restart(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var_input_checkpoint.set(value)
-
-    @property
-    def trajectory_every(self):
-        return self.gui.var_output_interval.get()
-
-    @trajectory_every.setter
-    def trajectory_every(self, value):
-        self.gui.var_output_interval.set(value)
+        self.gui.var_output_restart.set(value)
 
     @property
     def outputpath(self):
@@ -304,7 +270,9 @@ class Model(object):
 
     @property
     def platform(self):
-        return self.gui.var_advopt_hardware.get()
+        value = self.gui.var_advopt_hardware.get() 
+        if value.lower() != 'auto':
+            return value
 
     @platform.setter
     def platform(self, value):
@@ -312,7 +280,8 @@ class Model(object):
 
     @property
     def precision(self):
-        return self.gui.var_advopt_precision.get()
+        if self.platform:
+            return self.gui.var_advopt_precision.get()
 
     @precision.setter
     def precision(self, value):
@@ -367,28 +336,35 @@ class Model(object):
         self.gui.self.var_advopt_pressure_steps.set(value)
 
     @property
+    def trajectory(self):
+        return self.gui.var_md_reporters.get()
+
+    @trajectory.setter
+    def trajectory(self, value):
+        self.gui.self.var_md_reporters.set(value)
+
+
+    @property
     def trajectory_every(self):
-        return self.gui.var_output_traj_interval.get()
+        if self.trajectory != 'None':
+            return self.gui.var_output_traj_interval.get()
 
     @trajectory_every.setter
     def trajectory_every(self, value):
         self.gui.self.var_output_traj_interval.set(value)
 
     @property
+    def report(self):
+        return self.gui.var_verbose.get()
+
+    @property
     def report_every(self):
-        return self.gui.var_output_stdout_interval.get()
+        if self.report.lower()== 'true':
+            return self.gui.var_output_stdout_interval.get()
 
     @report_every.setter
     def report_every(self, value):
         self.gui.self.var_output_stdout_interval.set(value)
-
-    @property
-    def verbose(self):
-        return self.gui.var_verbose.get()
-
-    @verbose.setter
-    def verbose(self, value):
-        self.gui.self.var_verbose.set(value)
 
     @property
     def trajectory_new_every(self):
@@ -407,14 +383,6 @@ class Model(object):
         self.gui.self.var_restart_every.set(value)
 
     @property
-    def trajectory(self):
-        return self.gui.var_md_reporters.get()
-
-    @trajectory.setter
-    def trajectory(self, value):
-        self.gui.self.var_md_reporters.set(value)
-
-    @property
     def trajectory_atom_subset(self):
         return self.gui.var_traj_atoms.get()
 
@@ -422,25 +390,28 @@ class Model(object):
     def trajectory_atom_subset(self, value):
         self.gui.self.var_traj_atoms.set(value)
 
-    @property
-    def report(self):
-        if self.gui.var_md_reporters.get() == 'None':
-            return False
-        else:
-            return True
+
+
+    def parse(self):
+        self.reset_variables()
+        self.retrieve_settings()
+        self.retrieve_stages()    
 
     def retrieve_settings(self):
         dictionaries=[self.md_input, self.md_output, self.md_hardware,
                       self.md_conditions, self.md_systemoptions]
         for dictionary in dictionaries:
             for key, value in dictionary.items():
+                # Some combobox just returns boolean as a string so we fix that
                 value_to_store = getattr(self, key)
                 if value_to_store == 'True':
                     value_to_store = True
-                elif value_to_store == 'False': # Some combobox just returns boolean as a string we fix that
+                elif value_to_store == 'False':
                     value_to_store = False
                 if isinstance(value_to_store, bool):
                     dictionary[key] = value_to_store
+                elif value_to_store == 'None':
+                    del dictionary[key]
                 elif value_to_store:
                     dictionary[key] = value_to_store
                 else:
@@ -455,9 +426,8 @@ class Model(object):
                 elif value == 'False':
                     value = False
                     dictionary[key] = value
-                elif value is None:
+                elif value in [None,'None']:
                     del dictionary[key]
-
         self.stages
 
     def reset_variables(self):
@@ -468,7 +438,7 @@ class Model(object):
                          'velocities': None,
                          'box': None}
 
-        self.md_output = {'project_name': 'sys',
+        self.md_output = {'project_name': None,
                           'restart': None,
                           'trajectory_every': None,
                           'outputpath': None,
@@ -496,16 +466,3 @@ class Model(object):
                                  'ewaldErrorTolerance': None,
                                  'constraints': None,
                                  'rigidWater': False}
-
-        self.stages_name = []
-        forcefields = []
-        additional_force = []
-
-
-
-@contextlib.contextmanager
-def ignored(*exceptions):
-    try:
-        yield
-    except exceptions:
-        pass
