@@ -685,7 +685,7 @@ class OpenMM(ModelessDialog):
                 'barostat_every': self.var_stage_pressure_steps.get(),
                 'barostat': self.var_stage_barostat.get(),
                 'constrained_atoms': constraints,
-                'minimize': self.var_stage_minimiz.get(),
+                'minimization': self.var_stage_minimiz.get(),
                 'minimization_max_iterations': self.var_stage_minimiz_maxsteps.get(),
                 'minimization_tolerance': self.var_stage_minimiz_tolerance.get(),
                 'trajectory': self.var_stage_reporters.get(),
@@ -875,7 +875,7 @@ class OpenMM(ModelessDialog):
 
     def create_extforcefield_add(self):
         path = filedialog.askopenfilename(initialdir='~/', filetypes=(
-            ('Xml File', '*.xml'), ('Frcmod File', '*.frcmod')))
+            ('Xml File', '*.xml'), ('Frcmod File', '*.frcmod'),('gaff.mol2 File', '*.gaff.mol2')))
         if path:
             self.ui_add_forcefields_List.insert('end', path)
             self.additional_force.append(path)
@@ -907,7 +907,7 @@ class OpenMM(ModelessDialog):
         #Getting molecule attributes
         model = self.ui_chimera_models.getvalue()
         model_name = os.path.splitext(model.name)[0]
-        model_id = model.oslIdent()
+        model_id = str(model.oslIdent())
         index = self.ui_chimera_models.index(self.ui_chimera_models.curselection())
         modelfile_path = model.openedAs[0]
         modelfile_extension = model.openedAs[1]
