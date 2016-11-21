@@ -3,14 +3,12 @@
 
 # Get used to importing this in your Py27 projects!
 from __future__ import print_function, division
-# Python stdlib
+# Python
 import os
+import sys
 import yaml
 import subprocess
-# Chimera stuff
-import chimera
-# Own
-import gui
+import threading
 
 """
 This module contains the business logic of your extension.
@@ -40,14 +38,16 @@ class Controller(object):
         self.gui.buttonWidgets['Save Input'].configure(command=self.saveinput)
         self.gui.buttonWidgets['Run'].configure(command=self.run)
 
-    def saveinput(self):
-        self.model.parse()
-        self.write()
-
     def run(self):
         self.saveinput()
         command = 'ommprotocol ' + self.filename
         subprocess.Popen(command, shell=True)
+        sys.stdout.write('MD succesfully finished')
+
+
+    def saveinput(self):
+        self.model.parse()
+        self.write()
 
     def write(self):
         # Write input
@@ -132,15 +132,15 @@ class Model(object):
     @property
     def topology(self):
         if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
-            model = self.gui.ui_chimera_models.getvalue()
-            model_name = os.path.splitext(model.name)[0]
-            sanitized_path = str(os.path.join(self.gui.var_output.get(), model_name + '_fixed.pdb'))
-            
+            if self.gui.ui_chimera_models.getvalue():
+                model = self.gui.ui_chimera_models.getvalue()
+                model_name = os.path.splitext(model.name)[0]
+                sanitized_path = str(os.path.join(self.gui.var_output.get(), model_name + '_fixed.pdb'))
+                if os.path.isfile(sanitized_path):
+                    return sanitized_path
+                else:
+                    return model.openedAs[0]
 
-            if os.path.isfile(sanitized_path):
-                return sanitized_path
-            else:
-                return model.openedAs[0]
         elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
                 return self.gui.var_path.get()
 
