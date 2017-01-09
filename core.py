@@ -90,7 +90,7 @@ class Model(object):
                          'forcefield': None,
                          'charmm_parameters': None,
                          'velocities': None,
-                         'box': None}
+                         'box_vectors': None}
 
         self.md_output={ 'project_name': None,
                           'restart': None,
@@ -113,7 +113,7 @@ class Model(object):
                             'temperature': None,
                             'friction': None,
                             'pressure': None,
-                            'barostat_every': None}
+                            'barostat_interval': None}
 
         self.md_systemoptions ={ 'nonbondedMethod': None,
                                  'nonbondedCutoff': None,
@@ -193,11 +193,11 @@ class Model(object):
         self.gui.var_input_vel.set(value)
 
     @property
-    def box(self):
+    def box_vectors(self):
         return self.gui.var_input_box.get()
 
-    @box.setter
-    def box(self, value):
+    @box_vectors.setter
+    def box_vectors(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
         self.gui.var_input_box.set(value)
@@ -328,11 +328,11 @@ class Model(object):
         self.gui.self.var_advopt_pressure.set(value)
 
     @property
-    def barostat_every(self):
+    def barostat_interval(self):
         return self.gui.var_advopt_pressure_steps.get()
 
-    @barostat_every.setter
-    def barostat_every(self, value):
+    @barostat_interval.setter
+    def barostat_interval(self, value):
         self.gui.self.var_advopt_pressure_steps.set(value)
 
     @property
@@ -436,7 +436,7 @@ class Model(object):
                          'forcefield': None,
                          'charmm_parameters': None,
                          'velocities': None,
-                         'box': None}
+                         'box_vectors': None}
 
         self.md_output = {'project_name': None,
                           'restart': None,
@@ -459,7 +459,7 @@ class Model(object):
                               'temperature': None,
                               'friction': None,
                               'pressure': None,
-                              'barostat_every': None}
+                              'barostat_interval': None}
 
         self.md_systemoptions = {'nonbondedMethod': None,
                                  'nonbondedCutoff': None,

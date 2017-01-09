@@ -682,7 +682,7 @@ class OpenMM(ModelessDialog):
                 'name': self.var_stage_name.get(),
                 'temperature': self.var_stage_temp.get(),
                 'pressure': self.var_stage_pressure.get(),
-                'barostat_every': self.var_stage_pressure_steps.get(),
+                'barostat_interval': self.var_stage_pressure_steps.get(),
                 'barostat': self.var_stage_barostat.get(),
                 'constrained_atoms': constraints,
                 'minimization': self.var_stage_minimiz.get(),

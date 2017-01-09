@@ -21,7 +21,7 @@ class OpenMMExtension(chimera.extension.EMO):
 
     def name(self):
         # Always prefix with 'Plume'
-        return 'Plume OpenMM'
+        return 'Plumme OpenMM'
 
     def description(self):
         # Something short but meaningful
