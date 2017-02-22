@@ -10,6 +10,7 @@ import tkFileDialog as filedialog
 import ttk
 # Chimera stuff
 import chimera
+from chimera import UserError
 import chimera.tkgui
 from chimera.widgets import MoleculeScrolledListBox
 from chimera.baseDialog import ModelessDialog

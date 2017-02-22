@@ -8,7 +8,6 @@ import os
 import sys
 import yaml
 import subprocess
-import threading
 
 """
 This module contains the business logic of your extension.
@@ -40,10 +39,8 @@ class Controller(object):
 
     def run(self):
         self.saveinput()
-        command = 'ommprotocol ' + self.filename
-        subprocess.Popen(command, shell=True)
+        subprocess.call(['ommprotocol', self.filename])
         sys.stdout.write('MD succesfully finished')
-
 
     def saveinput(self):
         self.model.parse()
