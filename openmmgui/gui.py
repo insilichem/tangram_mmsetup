@@ -13,12 +13,9 @@ import chimera
 from chimera import UserError
 import chimera.tkgui
 from chimera.widgets import MoleculeScrolledListBox
-from chimera.baseDialog import ModelessDialog
-from chimera import runCommand as rc
 # OpenMM package
-import simtk.openmm.app as app
-# Pdbfixer
-from pdbfixer import pdbfixer
+from simtk.openmm.app import PDBFile
+from pdbfixer import PDBFixer
 # Own
 from libplume.ui import PlumeBaseDialog
 from core import Controller, Model
@@ -33,7 +30,7 @@ def showUI(callback=None, *args, **kwargs):
         tk.Tk().withdraw()
     global ui
     if not ui:  # Edit this to reflect the name of the class!
-        ui = OpenMM(*args, **kwargs)
+        ui = OpenMMGUIDialog(*args, **kwargs)
     model = Model(gui=ui)
     controller = Controller(gui=ui, model=model)
     ui.enter()
@@ -41,7 +38,7 @@ def showUI(callback=None, *args, **kwargs):
         ui.addCallback(callback)
 
 
-class OpenMM(PlumeBaseDialog):
+class OpenMMGUIDialog(PlumeBaseDialog):
 
     """
     To display a new dialog on the interface, you will normally inherit from
@@ -817,7 +814,7 @@ class OpenMM(PlumeBaseDialog):
 
     def fix_pdb(self, infile, out=None, pH=7):
         with open(infile, 'r') as f:
-            fixer = pdbfixer.PDBFixer(pdbfile=f)
+            fixer = PDBFixer(pdbfile=f)
         fixer.findMissingResidues()
         fixer.findMissingAtoms()
         fixer.addMissingAtoms()
@@ -825,7 +822,7 @@ class OpenMM(PlumeBaseDialog):
         if out is None:
             out = '{0[0]}{1}{0[1]}'.format(os.path.splitext(infile), '_fixed')
         with open(out, 'w') as f:
-            app.PDBFile.writeFile(fixer.topology, fixer.positions, f)
+            PDBFile.writeFile(fixer.topology, fixer.positions, f)
 
     # Callbacks
 
