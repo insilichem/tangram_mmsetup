@@ -8,25 +8,11 @@ import os
 import sys
 import yaml
 import subprocess
-
-"""
-This module contains the business logic of your extension.
-Normally, it should contain the Controller and the Model.
-Read on MVC design if you don't know about it.
-"""
+from tkFileDialog import asksaveasfilename
+import chimera
 
 
 class Controller(object):
-
-    """
-    The controller manages the communication
-    between the UI (graphic interface)
-    and the data model.
-    Actions such as clicks on buttons,
-    enabling certain areas,
-    or runing external programs,
-    are the responsibility of the controller.
-    """
 
     def __init__(self, gui, model, *args, **kwargs):
         self.gui = gui
@@ -42,14 +28,18 @@ class Controller(object):
         subprocess.call(['ommprotocol', self.filename])
         sys.stdout.write('MD succesfully finished')
 
-    def saveinput(self):
+    def saveinput(self, path=None):
+        if path is None:
+            path = asksaveasfilename(defaultextension='.yaml', filetypes=[('YAML', '*.yaml')])
+        if not path:
+            return
         self.model.parse()
-        self.write()
+        self.write(path)
+        self.gui.status('Written to {}'.format(path), color='blue', blankAfter=4)
 
-    def write(self):
+    def write(self, output):
         # Write input
-        self.filename = os.path.join(self.model.md_output['outputpath'],
-                                     self.model.md_output['project_name']+'.yaml')
+        self.filename = output
         with open(self.filename, 'w') as f:
             f.write('# Yaml input for OpenMM MD\n\n')
             f.write('# input\n')
