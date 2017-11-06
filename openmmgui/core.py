@@ -180,7 +180,17 @@ class Model(object):
     def box_vectors(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var_input_box.set(value)
+        self.gui.var_checkpoint.set(value)
+
+    @property
+    def checkpoint(self):
+        return self.gui.var_checkpoint.get()
+
+    @checkpoint.setter
+    def checkpoint(self, value):
+        if not os.path.isfile(value):
+            raise ValueError('Cannot access file {}'.format(value))
+        self.gui.var_checkpoint.set(value)
 
     @property
     def restart(self):
@@ -408,7 +418,6 @@ class Model(object):
                     dictionary[key] = value
                 elif value in [None,'None']:
                     del dictionary[key]
-        self.stages
 
     def reset_variables(self):
         self.md_input = {'topology': None,
@@ -416,7 +425,8 @@ class Model(object):
                          'forcefield': None,
                          'charmm_parameters': None,
                          'velocities': None,
-                         'box_vectors': None}
+                         'box_vectors': None,
+                         'checkpoint': None}
 
         self.md_output = {'project_name': None,
                           'restart': None,

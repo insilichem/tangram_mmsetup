@@ -729,20 +729,30 @@ class OpenMM(PlumeBaseDialog):
             self.ui_input_opt_window, text='Initial Files')
         self.ui_advopt_input_opt_lframe.pack(expand=True, fill='both')
         # Fill lframe
+        self.ui_input_coords_Entry = tk.Entry(
+            self.ui_input_opt_window, textvariable=self.var_input_coords)
+        self.ui_input_coords_browse = tk.Button(
+            self.ui_input_opt_window, text='...',
+            command=lambda: self._browse_file(self.var_input_coords, 'inpcrd', 'crd'))
         self.ui_input_vel_Entry = tk.Entry(
             self.ui_input_opt_window, textvariable=self.var_input_vel)
         self.ui_input_vel_browse = tk.Button(
             self.ui_input_opt_window, text='...',
-            command=lambda: self._browse_file(self.var_input_vel, 'vel', ''))
+            command=lambda: self._browse_file(self.var_input_vel, 'vel'))
         self.ui_input_box_Entry = tk.Entry(
             self.ui_input_opt_window, textvariable=self.var_input_box)
         self.ui_input_box_browse = tk.Button(
             self.ui_input_opt_window, text='...',
             command=lambda: self._browse_file(self.var_input_box, 'xsc', 'csv'))
-
-
-        input_grid = [['Velocities', self.ui_input_vel_Entry, self.ui_input_vel_browse,
-                       'Box', self.ui_input_box_Entry, self.ui_input_box_browse]]
+        self.ui_input_checkpoint_Entry = tk.Entry(
+            self.ui_input_opt_window, textvariable=self.var_input_restart)
+        self.ui_input_checkpoint_browse = tk.Button(
+            self.ui_input_opt_window, text='...',
+            command=lambda: self._browse_file(self.var_checkpoint, 'rst', 'xml', '*'))
+        input_grid = [['Coordinates', self.ui_input_coords_Entry, self.ui_input_coords_browse],
+                      ['Velocities', self.ui_input_vel_Entry, self.ui_input_vel_browse],
+                      ['Box vectors', self.ui_input_box_Entry, self.ui_input_box_browse],
+                      ['From checkpoint', self.ui_input_checkpoint_Entry, self.ui_input_checkpoint_browse]]
 
         self.auto_grid(self.ui_advopt_input_opt_lframe, input_grid)
 
