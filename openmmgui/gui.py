@@ -279,12 +279,7 @@ class OpenMM(PlumeBaseDialog):
 
         # Events
         self.ui_input_note.bind("<ButtonRelease-1>", self._forc_param)
-        sys = chimera.openModels.addAddHandler(self._chimera_model_handler, None)
 
-    def _chimera_model_handler(self, trigger,arg,new_model):
-        for model in chimera.openModels.list():
-            if model.id != new_model[0].id:
-                chimera.openModels.remove(model)
 
     def _forc_param(self, event):
         """
