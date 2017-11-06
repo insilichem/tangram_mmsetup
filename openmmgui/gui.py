@@ -107,7 +107,6 @@ class OpenMM(PlumeBaseDialog):
         self.var_integrator.set('LangevinIntegrator')
         self.var_tstep.set(1)
         self.var_output_projectname.set('sys')
-        self.var_output.set(os.path.expanduser('~'))
         self.var_output_traj_interval.set(1000)
         self.var_output_stdout_interval.set(1000)
         self.var_md_reporters.set('DCD')
@@ -814,43 +813,31 @@ class OpenMM(PlumeBaseDialog):
         # Each model in a single model
         #Getting molecule attributes
         model = self.ui_chimera_models.getvalue()
-        model_name = os.path.splitext(model.name)[0]
-        model_id = str(model.oslIdent())
-        index = self.ui_chimera_models.index(self.ui_chimera_models.curselection())
-        modelfile_path = model.openedAs[0]
-        modelfile_extension = model.openedAs[1]
-        #Sanitize pdb
-        if modelfile_extension == 'PDB':
-            print('Sanitizing pdb ...')
-            output_file = str(os.path.join(self.var_output.get(), model_name + '_fixed.pdb'))
-            self.fix_pdb(modelfile_path, output_file)
-        #Sanitize mol2 and others
-        else:
-            print('Sanitizing file ...')
-            output_file = str(os.path.join(self.var_output.get(), model_name + '_fixed.pdb'))
-            rc('write ' + str(model.oslIdent()) + ' ' + output_file)
-            self.fix_pdb(pdb_file)
+        modelfile_path = getattr(model, 'openedAs', (model.name,))[0]
+        output_file = '{0[0]}{1}{0[1]}'.format(os.path.splitext(modelfile_path), '_fixed')
+        chimera.pdbWrite([model], chimera.Xform(), output_file)
+        self.fix_pdb(output_file, out=output_file)
+        m = chimera.openModels.open(output_file, sameAs=model, temporary=True)[0]
+        m.name = model.name + ' - Fixed'
+        self.ui_chimera_models.selection_clear()
+        self.ui_chimera_models.selection_set(chimera.openModels.list().index(m))
+        model.display = False
 
-
-    def fix_pdb(self, input_file, output_file):
-        with open(input_file, 'r') as f:
+    def fix_pdb(self, infile, out=None, pH=7):
+        with open(infile, 'r') as f:
             fixer = pdbfixer.PDBFixer(pdbfile=f)
         fixer.findMissingResidues()
-        missing_residues = fixer.missingResidues
-        print(missing_residues)
         fixer.findMissingAtoms()
-        missing_atoms = fixer.missingAtoms
-        missing_terminals = fixer.missingTerminals
-        print(missing_atoms)
-        print(missing_terminals)
         fixer.addMissingAtoms()
-        fixer.addMissingHydrogens(pH=2)
-        with open(output_file, 'w') as f:
+        fixer.addMissingHydrogens(pH=pH)
+        if out is None:
+            out = '{0[0]}{1}{0[1]}'.format(os.path.splitext(infile), '_fixed')
+        with open(out, 'w') as f:
             app.PDBFile.writeFile(fixer.topology, fixer.positions, f)
 
     # Callbacks
 
-    def _browse_file(self, var, file_type1, file_type2):
+    def _browse_file(self, var, *filetypes):
         """
         Browse file path
 
@@ -860,9 +847,8 @@ class OpenMM(PlumeBaseDialog):
         file_type1 = 1st type of file to open
         file_type2 = 2nd  type of file to open
         """
-
-        path = filedialog.askopenfilename(initialdir='~/', filetypes=(
-            (file_type1, '*.' + file_type1), (file_type2, '*.' + file_type2)))
+        path = filedialog.askopenfilename(initialdir='~/',
+            filetypes=[(ft, '*.' + ft) for ft in filetypes])
         if path:
             var.set(path)
 
@@ -876,8 +862,7 @@ class OpenMM(PlumeBaseDialog):
 
         """
 
-        path_dir = filedialog.askdirectory(
-            initialdir='~/')
+        path_dir = filedialog.askdirectory(initialdir='~/')
         if path_dir:
             var.set(path_dir)
 
