@@ -69,9 +69,10 @@ class Model(object):
                          'forcefield': None,
                          'charmm_parameters': None,
                          'velocities': None,
-                         'box_vectors': None}
+                         'box_vectors': None,
+                         'checkpoint': None}
 
-        self.md_output={ 'project_name': None,
+        self.md_output={'project_name': None,
                           'restart': None,
                           'trajectory_every': None,
                           'outputpath': None,
@@ -84,7 +85,7 @@ class Model(object):
                           'trajectory': None}
 
         self.md_hardware={'platform':None,
-                          'precision':None}
+                          'precision': None}
 
         self.md_conditions={'timestep': None,
                             'integrator': None,
@@ -94,7 +95,7 @@ class Model(object):
                             'pressure': None,
                             'barostat_interval': None}
 
-        self.md_systemoptions ={ 'nonbondedMethod': None,
+        self.md_systemoptions ={'nonbondedMethod': None,
                                  'nonbondedCutoff': None,
                                  'ewaldErrorTolerance': None,
                                  'constraints': None,
@@ -106,7 +107,7 @@ class Model(object):
 
     @property
     def project_name(self):
-        return  self.gui.var_output_projectname.get()
+        return self.gui.var_output_projectname.get()
 
     @property
     def topology(self):
