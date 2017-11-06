@@ -73,16 +73,16 @@ class Model(object):
                          'checkpoint': None}
 
         self.md_output={'project_name': None,
-                          'restart': None,
-                          'trajectory_every': None,
-                          'outputpath': None,
-                          'report_every': None,
-                          'trajectory_every': None,
-                          'trajectory_new_every': None,
-                          'restart_every': None,
-                          'trajectory_atom_subset': None,
-                          'report': True,
-                          'trajectory': None}
+                        'restart': None,
+                        'trajectory_every': None,
+                        'outputpath': None,
+                        'report_every': None,
+                        'trajectory_every': None,
+                        'trajectory_new_every': None,
+                        'restart_every': None,
+                        'trajectory_atom_subset': None,
+                        'report': True,
+                        'trajectory': None}
 
         self.md_hardware={'platform':None,
                           'precision': None}
@@ -96,10 +96,10 @@ class Model(object):
                             'barostat_interval': None}
 
         self.md_systemoptions ={'nonbondedMethod': None,
-                                 'nonbondedCutoff': None,
-                                 'ewaldErrorTolerance': None,
-                                 'constraints': None,
-                                 'rigidWater': False}
+                                'nonbondedCutoff': None,
+                                'ewaldErrorTolerance': None,
+                                'constraints': None,
+                                'rigidWater': False}
 
     @property
     def stages(self):
@@ -114,12 +114,12 @@ class Model(object):
         if self.gui.ui_input_note.index(self.gui.ui_input_note.select()):
             return self.gui.var_path.get()
         # else:
-                model = self.gui.ui_chimera_models.getvalue()
+        model = self.gui.ui_chimera_models.getvalue()
         if model:
             sanitized_path = '{0[0]}{1}{0[1]}'.format(os.path.splitext(model.name), '_fixed')
-                if os.path.isfile(sanitized_path):
-                    return sanitized_path
-                else:
+            if os.path.isfile(sanitized_path):
+                return sanitized_path
+            else:
                 output = getattr(model, 'openedAs', (model.name + '.pdb',))[0]
                 chimera.pdbWrite([model], chimera.Xform(), output)
                 return output
@@ -260,7 +260,7 @@ class Model(object):
 
     @property
     def platform(self):
-        value = self.gui.var_advopt_hardware.get() 
+        value = self.gui.var_advopt_hardware.get()
         if value.lower() != 'auto':
             return value
 
@@ -380,12 +380,16 @@ class Model(object):
     def trajectory_atom_subset(self, value):
         self.gui.self.var_traj_atoms.set(value)
 
-
-
     def parse(self):
         self.reset_variables()
         self.retrieve_settings()
-        self.retrieve_stages()    
+        if self.md_hardware.get('platform'):
+            precision = self.md_hardware.get('precision')
+            if precision:
+                self.md_hardware['platform_properties'] = {'Precision': precision }
+        self.retrieve_stages()
+        if not self.stages:
+            raise ValueError('Add at least one stage')
 
     def retrieve_settings(self):
         dictionaries=[self.md_input, self.md_output, self.md_hardware,
