@@ -92,12 +92,14 @@ class OpenMM(PlumeBaseDialog):
 
     buttons = ('Save Input', 'Run', 'Close')
     default = None
-    help = 'https://www.insilichem.com'
+    help = "https://github.com/insilichem/plume_openmmgui"
+    VERSION = '0.0.1'
+    VERSION_URL = "https://api.github.com/repos/insilichem/plume_openmmgui/releases/latest"
 
     def __init__(self, *args, **kwargs):
 
         # GUI init
-        self.title = 'Plume OpenMM'
+        self.title = 'Plume OpenMM GUI'
 
         # OpenMM variables
         self.entries = ('output', 'forcefield', 'integrator',
@@ -193,7 +195,7 @@ class OpenMM(PlumeBaseDialog):
         # Create all frames
         frames = [('ui_input_frame', 'Model Topology'),
                   ('ui_output_frame', 'Output'),
-                  ('ui_settings_frame', 'System & Simulation\nSettings'),
+                  ('ui_settings_frame', 'System & Simulation Settings'),
                   ('ui_stage_frame', 'Stages')]
         for attr, text in frames:
             setattr(self, attr, tk.LabelFrame(self.canvas, text=text))
@@ -201,11 +203,14 @@ class OpenMM(PlumeBaseDialog):
         # Fill frames
         # Fill Input frame
         # Creating tabs
-        self.ui_input_note = ttk.Notebook(self.ui_input_frame)
+        self.ui_input_note = ttk.Notebook(self.ui_input_frame, padding=5)
         self.ui_tab_1 = tk.Frame(self.ui_input_note)
+        self.ui_tab_1.rowconfigure(0, weight=1)
+        self.ui_tab_1.columnconfigure(0, weight=1)
         self.ui_tab_2 = tk.Frame(self.ui_input_note)
-        self.ui_input_note.add(self.ui_tab_1, text="Chimera", state="normal")
-        self.ui_input_note.add(self.ui_tab_2, text="External Input", state="normal")
+        self.ui_tab_2.rowconfigure(0, weight=1)
+        self.ui_input_note.add(self.ui_tab_1, text="Chimera", state="normal", sticky='news')
+        self.ui_input_note.add(self.ui_tab_2, text="External Input", state="normal", sticky='news')
         self.ui_input_note.pack(expand=True, fill='both')
 
         # Input Frame
@@ -218,140 +223,106 @@ class OpenMM(PlumeBaseDialog):
         self.ui_sanitize_chimera_model = tk.Button(
             self.ui_input_frame, text="Sanitize\nModel", command=self.sanitize_model)
         chimera_input_grid = [[self.ui_chimera_models],
-                              [(self.ui_chimera_models_options,
-                               self.ui_sanitize_chimera_model)]]
-        self.auto_grid(self.ui_tab_1, chimera_input_grid)
+                              [(self.ui_chimera_models_options, self.ui_sanitize_chimera_model)]]
+        self.auto_grid(self.ui_tab_1, chimera_input_grid, sticky='news', padx=5, pady=5)
         # Tab 2
-        self.ui_model_extinput_add = tk.Button(
-            self.ui_input_frame, text='Set Model',
+        self.ui_model_extinput_add = tk.Button(self.ui_input_frame, text='Add\nModel',
             command=self._set_model)
-        self.ui_amber_model = tk.Listbox(
-            self.ui_input_frame, listvariable=self.var_path_extinput_top)
-        ui_amber_model_options = tk.Button(
-            self.ui_input_frame, text="Advanced\nOptions",
-            command=lambda: self.Open_window(
-                'ui_input_opt_window', self._fill_ui_input_opt_window))
+        self.ui_amber_model = tk.Listbox(self.ui_input_frame,
+            listvariable=self.var_path_extinput_top)
+        ui_amber_model_options = tk.Button(self.ui_input_frame, text="Advanced\nOptions",
+            command=lambda: self.Open_window('ui_input_opt_window', self._fill_ui_input_opt_window))
         extinput_grid = [[self.ui_amber_model],
-                         [(ui_amber_model_options,
-                          self.ui_model_extinput_add)]]
-        self.auto_grid(self.ui_tab_2, extinput_grid)
+                         [(ui_amber_model_options, self.ui_model_extinput_add)]]
+        self.auto_grid(self.ui_tab_2, extinput_grid, sticky='news', padx=5, pady=5)
 
         # Output frame
         self.ui_output_projectname_Entry = self.ui_output_entry = tk.Entry(
             self.canvas, textvariable=self.var_output_projectname)
-        self.ui_output_entry = tk.Entry(
-            self.canvas, textvariable=self.var_output)
-        self.ui_output_browse = tk.Button(
-            self.canvas, text='...',
+        self.ui_output_entry = tk.Entry(self.canvas, textvariable=self.var_output)
+        self.ui_output_browse = tk.Button(self.canvas, text='...',
             command=lambda: self._browse_directory(self.var_output))
         self.ui_output_reporters_md = ttk.Combobox(
-            self.canvas, textvariable=self.var_md_reporters)
+            self.canvas, textvariable=self.var_md_reporters, width=20)
         self.ui_output_reporters_md.config(values=('PDB', 'DCD', 'None'))
         self.ui_output_reporters_realtime = ttk.Combobox(
-            self.canvas, textvariable=self.var_verbose)
+            self.canvas, textvariable=self.var_verbose, width=20)
         self.ui_output_reporters_realtime.config(values=('True', 'False'))
         self.ui_output_trjinterval_Entry = tk.Entry(
-            self.canvas, textvariable=self.var_output_traj_interval)
+            self.canvas, textvariable=self.var_output_traj_interval, width=8)
         self.ui_output_stdout_interval_Entry = tk.Entry(
-            self.canvas, textvariable=self.var_output_stdout_interval)
-        self.ui_output_options = tk.Button(
-            self.canvas, text='Opt', command=lambda: self.Open_window(
-                'ui_output_opt', self._fill_ui_output_opt_window))
+            self.canvas, textvariable=self.var_output_stdout_interval, width=8)
+        self.ui_output_options = tk.Button(self.canvas, text='Advanced options',
+            command=lambda: self.Open_window('ui_output_opt', self._fill_ui_output_opt_window))
         self.ui_output_restart_Entry = tk.Entry(
             self.canvas, textvariable=self.var_output_restart)
-        self.ui_output_restart_browse = tk.Button(
-            self.canvas, text='...',
+        self.ui_output_restart_browse = tk.Button(self.canvas, text='...',
             command=lambda: self._browse_file(self.var_output_restart, 'rst', 'xml'))
 
-        output_grid = [['Project Name', self.ui_output_projectname_Entry],
-                       ['Save at', self.ui_output_entry, self.ui_output_browse],
-                       [''],
-                       ['Restart File', self.ui_output_restart_Entry,
+        output_grid = [['Project name:', self.ui_output_projectname_Entry],
+                       ['Save at:', self.ui_output_entry, self.ui_output_browse],
+                       ['Restart file:', self.ui_output_restart_Entry,
                        self.ui_output_restart_browse],
-                       [''],
-                       ['Trajectory\nReporters', self.ui_output_reporters_md],
-                       ['Every (frames)', self.ui_output_trjinterval_Entry],
-                       ['Real Time\nReporters', self.ui_output_reporters_realtime],
-                       ['Every (frames)', self.ui_output_stdout_interval_Entry,
-                        self.ui_output_options]]
+                       ['REPORTERS'],
+                       ['Trajectory:', (self.ui_output_reporters_md, 'every',
+                        self.ui_output_trjinterval_Entry, 'frames')],
+                       ['Progress:', (self.ui_output_reporters_realtime, 'every',
+                        self.ui_output_stdout_interval_Entry, 'frames')],
+                       ['', self.ui_output_options]]
 
-        self.auto_grid(self.ui_output_frame, output_grid)
+        self.auto_grid(self.ui_output_frame, output_grid, label_sep='')
 
         # Settings frame
-        self.ui_forcefield_combo = ttk.Combobox(
-            self.canvas, textvariable=self.var_forcefield)
-        self.ui_forcefield_combo.config(values=(
-            'amber96', 'amber99sb', 'amber99sbildn',
-            'amber99sbnmr', 'amber03', 'amber10'))
-        self.ui_forcefield_add = tk.Button(
-            self.canvas, text='+',
-            command=lambda: self.Open_window(
-                'ui_add_forcefields', self._fill_ui_add_forcefields))
-        self.ui_forcefield_charmmpar = tk.Button(
-            self.canvas, text='...', state='disabled',
-            command=lambda: self._browse_file(
-                self.var_parametrize_forc, 'par', ''))
-        self.ui_forcefield_charmmpar_entry = tk.Entry(
-            self.canvas, textvariable=self.var_parametrize_forc,
-            state='disabled')
-        self.ui_integrator = ttk.Combobox(
-            self.canvas, textvariable=self.var_integrator)
-        self.ui_integrator.config(
+        self.ui_forcefield_combo = ttk.Combobox(self.canvas, textvariable=self.var_forcefield)
+        self.ui_forcefield_combo.config(values=('amber96', 'amber99sb', 'amber99sbildn',
+                                                'amber99sbnmr', 'amber03', 'amber10'))
+        self.ui_forcefield_add = tk.Button(self.canvas, text='+',
+            command=lambda: self.Open_window('ui_add_forcefields', self._fill_ui_add_forcefields))
+        self.ui_forcefield_charmmpar = tk.Button(self.canvas, text='...', state='disabled',
+            command=lambda: self._browse_file(self.var_parametrize_forc, 'par', ''))
+        self.ui_forcefield_charmmpar_entry = tk.Entry(self.canvas,
+            textvariable=self.var_parametrize_forc, state='disabled')
+        self.ui_integrator = ttk.Combobox(self.canvas, textvariable=self.var_integrator,
             values=('LangevinIntegrator', 'BrownianIntegrator', 'VerletIntegrator',
                     'VariableVerletIntegrator', 'VariableLangevinIntegrator'))
-        self.ui_timestep_entry = tk.Entry(
-            self.canvas, textvariable=self.var_tstep)
-        self.ui_advanced_options = tk.Button(
-            self.canvas, text='Opt',
-            command=lambda: self.Open_window(
-                'ui_advopt_window', self._fill_ui_advopt_window))
+        self.ui_timestep_entry = tk.Entry(self.canvas, textvariable=self.var_tstep)
+        self.ui_advanced_options = tk.Button(self.canvas, text='More options',
+            command=lambda: self.Open_window('ui_advopt_window', self._fill_ui_advopt_window))
 
-        settings_grid = [['Forcefield', self.ui_forcefield_combo, self.ui_forcefield_add],
-                         ['Charmm\nParamaters', self.ui_forcefield_charmmpar_entry,
-                          self.ui_forcefield_charmmpar],
-                         ['Integrator', self.ui_integrator],
-                         ['Time Step\n(fs)', self.ui_timestep_entry, self.ui_advanced_options]]
+        settings_grid = [['Forcefield', self.ui_forcefield_combo, self.ui_forcefield_add,
+                          'Charmm Parameters', (self.ui_forcefield_charmmpar_entry, self.ui_forcefield_charmmpar)],
+                         ['Integrator', self.ui_integrator, 'Time Step (fs)', self.ui_timestep_entry, self.ui_advanced_options]]
         self.auto_grid(self.ui_settings_frame, settings_grid)
 
         # Stages Frame
-        self.ui_stages_up = tk.Button(
-            self.canvas, text='^', command=self._move_stage_up)
-        self.ui_stages_down = tk.Button(
-            self.canvas, text='v', command=self._move_stage_down)
-        self.ui_stages_add = tk.Button(
-            self.canvas, text='+',
+        self.ui_stages_up = tk.Button(self.canvas, text='^', command=self._move_stage_up)
+        self.ui_stages_down = tk.Button(self.canvas, text='v', command=self._move_stage_down)
+        self.ui_stages_add = tk.Button(self.canvas, text='+',
             command=lambda: self.Open_window(
                 'ui_stages_window', self._fill_ui_stages_window))
-        self.ui_stages_listbox = tk.Listbox(self.ui_stage_frame, height=28)
+        self.ui_stages_listbox = tk.Listbox(self.ui_stage_frame, height=20, background='white')
         self.ui_stages_remove = tk.Button(self.canvas, text='-',
             command=lambda: self._remove_stage('ui_stages_listbox', self.stages))
 
-        stage_frame_widgets = [['ui_stages_down', 8, 4],
-                               ['ui_stages_up', 6, 4],
-                               ['ui_stages_add', 2, 4],
-                               ['ui_stages_remove', 4, 4]]
-        for item, row, column in stage_frame_widgets:
-            getattr(self,item).grid(
-                in_=self.ui_stage_frame, row=row, column=column,
-                sticky='news', **self.style_option)
+        stage_frame_widgets = [self.ui_stages_add, self.ui_stages_remove,
+                               self.ui_stages_up, self.ui_stages_down]
+        for row, item in enumerate(stage_frame_widgets):
+            item.grid(in_=self.ui_stage_frame, row=row, column=2,
+                      sticky='news', **self.style_option)
 
         self.ui_stages_listbox.grid(
-            in_=self.ui_stage_frame, row=0, column=0, rowspan=10, columnspan=3,
+            in_=self.ui_stage_frame, row=0, column=0, rowspan=4,
             sticky='news', **self.style_option)
-        self.ui_stages_listbox.configure(background='white')
 
         # Grid Frames
-        frames = [[self.ui_input_frame, self.ui_output_frame]]
-        self.auto_grid(
-            self.canvas, frames, resize_columns=(0, 1), sticky='news')
-        self.ui_settings_frame.grid(
-            row=len(frames), columnspan=2, sticky='ew', padx=5, pady=5)
-        self.ui_stage_frame.grid(
-            row=0, column=3, rowspan=2, sticky='new', padx=5, pady=5)
+        self.ui_input_frame.grid(row=0, column=0, sticky='news', padx=5, pady=5)
+        self.ui_output_frame.grid(row=0, column=1, sticky='news', padx=5, pady=5)
+        self.ui_stage_frame.grid(row=0, column=3, rowspan=2, sticky='news', padx=5, pady=5)
+        self.ui_settings_frame.grid(row=1, columnspan=2, sticky='ew', padx=5, pady=5)
 
         # Events
         self.ui_input_note.bind("<ButtonRelease-1>", self._forc_param)
-        sys= chimera.openModels.addAddHandler(self._chimera_model_handler, None)
+        sys = chimera.openModels.addAddHandler(self._chimera_model_handler, None)
 
     def _chimera_model_handler(self, trigger,arg,new_model):
         for model in chimera.openModels.list():
@@ -497,7 +468,7 @@ class OpenMM(PlumeBaseDialog):
         # Creating tabs---> How to fix (tried to do it with list not working)
         ui_note = ttk.Notebook(self.ui_stages_window)
         titles = ["Stage", "Temperature & Pressure",
-                  "Constrains & Minimization", "MD Final Settings"]
+                  "Constrains & Minimization", "MD Settings"]
         for i, title in enumerate(titles, 1):
             setattr(self, 'ui_tab_' + str(i), tk.Frame(ui_note))
             ui_note.add(
@@ -561,7 +532,7 @@ class OpenMM(PlumeBaseDialog):
             self.ui_tab_3, text='Protein', variable=self.var_stage_constrprot,
             onvalue='Protein', offvalue='')
         self.ui_stage_constrback_check = ttk.Checkbutton(
-            self.ui_tab_3, text='Bakcbone', variable=self.var_stage_constrback,
+            self.ui_tab_3, text='Backbone', variable=self.var_stage_constrback,
             onvalue='Backbone', offvalue='')
         self.ui_stage_constrother_Entry = tk.Entry(
             self.ui_tab_3, width=20, textvariable=self.var_stage_constrother)
