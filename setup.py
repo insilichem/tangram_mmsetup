@@ -38,6 +38,5 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Chemistry',
     ],
-    install_requires=[],
-    package_data={'openmmgui': ['*.png']},
+    install_requires=['ommprotocol']
 )
