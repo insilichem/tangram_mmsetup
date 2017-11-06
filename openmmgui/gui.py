@@ -141,7 +141,7 @@ class OpenMMGUIDialog(PlumeBaseDialog):
         self.style_option = {'padx': 10, 'pady': 10}
 
         # Fire up
-        super(OpenMM, self).__init__(*args, **kwargs)
+        super(OpenMMGUIDialog, self).__init__(*args, **kwargs)
 
     def fill_in_ui(self, parent):
         """
@@ -276,7 +276,6 @@ class OpenMMGUIDialog(PlumeBaseDialog):
 
         # Events
         self.ui_input_note.bind("<ButtonRelease-1>", self._forc_param)
-
 
     def _forc_param(self, event):
         """
@@ -420,8 +419,7 @@ class OpenMMGUIDialog(PlumeBaseDialog):
                   "Constrains & Minimization", "MD Settings"]
         for i, title in enumerate(titles, 1):
             setattr(self, 'ui_tab_' + str(i), tk.Frame(ui_note))
-            ui_note.add(
-                getattr(self, 'ui_tab_' + str(i)), text=title, state="normal")
+            ui_note.add(getattr(self, 'ui_tab_' + str(i)), text=title, state="normal")
         ui_note.pack()
 
         # tab_1
@@ -733,7 +731,7 @@ class OpenMMGUIDialog(PlumeBaseDialog):
             self.ui_input_opt_window, text='...',
             command=lambda: self._browse_file(self.var_input_box, 'xsc', 'csv'))
         self.ui_input_checkpoint_Entry = tk.Entry(
-            self.ui_input_opt_window, textvariable=self.var_input_restart)
+            self.ui_input_opt_window, textvariable=self.var_checkpoint)
         self.ui_input_checkpoint_browse = tk.Button(
             self.ui_input_opt_window, text='...',
             command=lambda: self._browse_file(self.var_checkpoint, 'rst', 'xml', '*'))
