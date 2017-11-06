@@ -62,14 +62,6 @@ class Controller(object):
 
 class Model(object):
 
-    """The model controls the data we work with.
-    Normally, it'd be a Chimera molecule
-    and some input files from other programs.
-    The role of the model is to create
-    a layer around those to allow the easy
-    access and use to the data contained in
-    those files"""
-
     def __init__(self, gui, *args, **kwargs):
         self.gui = gui
         self.md_input = {'topology': None,

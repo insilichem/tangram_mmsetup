@@ -23,47 +23,8 @@ from pdbfixer import pdbfixer
 from libplume.ui import PlumeBaseDialog
 from core import Controller, Model
 
-"""
-The gui.py module contains the interface code, and only that.
-It should only 'draw' the window, and should NOT contain any
-business logic like parsing files or applying modifications
-to the opened molecules. That belongs to core.py.
-"""
 
-STYLES = {
-    tk.Entry: {
-        'background': 'white',
-        'borderwidth': 1,
-        'highlightthickness': 0,
-        'width': 10,
-    },
-    tk.Listbox: {
-        'height': '10',
-        'width': '5',
-        'background': 'white',
-
-    },
-    tk.Button: {
-        'borderwidth': 1,
-        'highlightthickness': 0,
-
-    },
-    tk.Checkbutton: {
-        #'highlightbackground': chimera.tkgui.app.cget('bg'),
-        #'activebackground': chimera.tkgui.app.cget('bg'),
-    },
-    MoleculeScrolledListBox: {
-        'listbox_borderwidth': 1,
-        'listbox_background': 'white',
-        'listbox_highlightthickness': 0,
-        'listbox_height': 10,
-    }
-}
-
-# This is a Chimera thing. Do it, and deal with it.
 ui = None
-
-
 def showUI(callback=None, *args, **kwargs):
     """
     Requested by Chimera way-of-doing-things
