@@ -111,18 +111,18 @@ class Model(object):
 
     @property
     def topology(self):
-        if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
-            if self.gui.ui_chimera_models.getvalue():
+        if self.gui.ui_input_note.index(self.gui.ui_input_note.select()):
+            return self.gui.var_path.get()
+        # else:
                 model = self.gui.ui_chimera_models.getvalue()
-                model_name = os.path.splitext(model.name)[0]
-                sanitized_path = str(os.path.join(self.gui.var_output.get(), model_name + '_fixed.pdb'))
+        if model:
+            sanitized_path = '{0[0]}{1}{0[1]}'.format(os.path.splitext(model.name), '_fixed')
                 if os.path.isfile(sanitized_path):
                     return sanitized_path
                 else:
-                    return model.openedAs[0]
-
-        elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
-                return self.gui.var_path.get()
+                output = getattr(model, 'openedAs', (model.name + '.pdb',))[0]
+                chimera.pdbWrite([model], chimera.Xform(), output)
+                return output
 
     @topology.setter
     def topology(self, value):
