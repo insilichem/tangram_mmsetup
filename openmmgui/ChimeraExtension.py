@@ -21,11 +21,11 @@ class OpenMMExtension(chimera.extension.EMO):
 
     def name(self):
         # Always prefix with 'Plume'
-        return 'Plume OpenMM'
+        return 'Plume OpenMM GUI'
 
     def description(self):
         # Something short but meaningful
-        return "MD simulation extension OpenMM"
+        return "Run MD simulations with OpenMM"
 
     def categories(self):
         # Don't touch
