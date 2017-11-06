@@ -175,7 +175,8 @@ class OpenMM(PlumeBaseDialog):
 
         # Input Frame
         # Tab1
-        self.ui_chimera_models = MoleculeScrolledListBox(self.ui_input_frame)
+        self.ui_chimera_models = MoleculeScrolledListBox(self.ui_input_frame,
+            listbox_selectmode='single', autoselect='single')
         self.ui_chimera_models_options = tk.Button(
             self.ui_input_frame, text="Advanced\nOptions",
             command=lambda: self.Open_window(
@@ -188,7 +189,7 @@ class OpenMM(PlumeBaseDialog):
         # Tab 2
         self.ui_model_extinput_add = tk.Button(self.ui_input_frame, text='Add\nModel',
             command=self._set_model)
-        self.ui_amber_model = tk.Listbox(self.ui_input_frame,
+        self.ui_amber_model = tk.Listbox(self.ui_input_frame, height=5,
             listvariable=self.var_path_extinput_top)
         ui_amber_model_options = tk.Button(self.ui_input_frame, text="Advanced\nOptions",
             command=lambda: self.Open_window('ui_input_opt_window', self._fill_ui_input_opt_window))
@@ -199,9 +200,6 @@ class OpenMM(PlumeBaseDialog):
         # Output frame
         self.ui_output_projectname_Entry = self.ui_output_entry = tk.Entry(
             self.canvas, textvariable=self.var_output_projectname)
-        self.ui_output_entry = tk.Entry(self.canvas, textvariable=self.var_output)
-        self.ui_output_browse = tk.Button(self.canvas, text='...',
-            command=lambda: self._browse_directory(self.var_output))
         self.ui_output_reporters_md = ttk.Combobox(
             self.canvas, textvariable=self.var_md_reporters, width=20)
         self.ui_output_reporters_md.config(values=('PDB', 'DCD', 'None'))
@@ -220,7 +218,6 @@ class OpenMM(PlumeBaseDialog):
             command=lambda: self._browse_file(self.var_output_restart, 'rst', 'xml'))
 
         output_grid = [['Project name:', self.ui_output_projectname_Entry],
-                       ['Save at:', self.ui_output_entry, self.ui_output_browse],
                        ['Restart file:', self.ui_output_restart_Entry,
                        self.ui_output_restart_browse],
                        ['REPORTERS'],
@@ -260,7 +257,7 @@ class OpenMM(PlumeBaseDialog):
         self.ui_stages_add = tk.Button(self.canvas, text='+',
             command=lambda: self.Open_window(
                 'ui_stages_window', self._fill_ui_stages_window))
-        self.ui_stages_listbox = tk.Listbox(self.ui_stage_frame, height=20, background='white')
+        self.ui_stages_listbox = tk.Listbox(self.ui_stage_frame, height=18, background='white')
         self.ui_stages_remove = tk.Button(self.canvas, text='-',
             command=lambda: self._remove_stage('ui_stages_listbox', self.stages))
 
