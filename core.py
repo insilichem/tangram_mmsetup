@@ -3,27 +3,29 @@
 
 # Get used to importing this in your Py27 projects!
 from __future__ import print_function, division
-# Python stdlib
+# Python
 import os
-import collections
-import contextlib
-# Chimera stuff
-# Additional 3rd parties
-# Own
-import gui
+import sys
+import yaml
+import subprocess
 
 """
-This module contains the business logic of your extension. Normally, it should
-contain the Controller and the Model. Read on MVC design if you don't know about it.
+This module contains the business logic of your extension.
+Normally, it should contain the Controller and the Model.
+Read on MVC design if you don't know about it.
 """
 
 
 class Controller(object):
 
-    """ 
-    The controller manages the communication between the UI (graphic interface)
-    and the data model. Actions such as clicks on buttons, enabling certain areas, 
-    or runing external programs, are the responsibility of the controller.
+    """
+    The controller manages the communication
+    between the UI (graphic interface)
+    and the data model.
+    Actions such as clicks on buttons,
+    enabling certain areas,
+    or runing external programs,
+    are the responsibility of the controller.
     """
 
     def __init__(self, gui, model, *args, **kwargs):
@@ -32,108 +34,140 @@ class Controller(object):
         self.set_mvc()
 
     def set_mvc(self):
-        # Tie model and gui
-        self.model.variables_keys = list(self.model.variables.keys())
-        for item in self.model.variables_keys:
-            with ignored(AttributeError):
-                var = getattr(self.model, '_' + item)
-                var.trace(lambda *args: setattr(self.model, item, var.get()))
-
+        self.gui.buttonWidgets['Save Input'].configure(command=self.saveinput)
         self.gui.buttonWidgets['Run'].configure(command=self.run)
 
     def run(self):
+        self.saveinput()
+        subprocess.call(['ommprotocol', self.filename])
+        sys.stdout.write('MD succesfully finished')
+
+    def saveinput(self):
         self.model.parse()
-        print(self.model.variables)
-        print('\n')
-        return
+        self.write()
+
+    def write(self):
+        # Write input
+        self.filename = os.path.join(self.model.md_output['outputpath'],
+                                     self.model.md_output['project_name']+'.yaml')
+        with open(self.filename, 'w') as f:
+            f.write('# Yaml input for OpenMM MD\n\n')
+            f.write('# input\n')
+            yaml.dump(self.model.md_input, f, default_flow_style=False)
+            f.write('\n')
+            f.write('# output\n')
+            yaml.dump(self.model.md_output, f, default_flow_style=False)
+            if self.model.md_hardware:
+                f.write('\n# hardware\n')
+                yaml.dump(self.model.md_hardware, f, default_flow_style=False)
+            f.write('\n# conditions\n')
+            yaml.dump(self.model.md_conditions, f, default_flow_style=False)
+            f.write('\n# OpenMM system options\n')
+            yaml.dump(self.model.md_systemoptions, f, default_flow_style=False)
+            f.write('\n\nstages:\n')
+            for stage in self.model.stages:
+                yaml.dump([stage], f, indent=8, default_flow_style=False)
+                f.write('\n')
 
 
 class Model(object):
 
-    """The model controls the data we work with. Normally, it'd be a Chimera molecule
-    and some input files from other programs. The role of the model is to create
-    a layer around those to allow the easy access and use to the data contained in
+    """The model controls the data we work with.
+    Normally, it'd be a Chimera molecule
+    and some input files from other programs.
+    The role of the model is to create
+    a layer around those to allow the easy
+    access and use to the data contained in
     those files"""
 
     def __init__(self, gui, *args, **kwargs):
         self.gui = gui
-        self.variables= collections.OrderedDict()
-        self.variables_stage = collections.OrderedDict()
-        self.variables = {'path': None, 'positions': None, 'forcefield': None, 'charmm_parameters': None, 
-                          'vel': None, 'box': None, 'restart': None, 'stdout': None, 'mdtraj' : None,
-                          'trajectory_every': None, 'output': None, 'integrator': None,
-                          'nonbondedMethod': None, 'nonbondedCutoff': None, 'ewaldErrorTolerance': None,
-                          'constraints': None, 'rigidWater': False, 'platform':None, 'precision':None,
-                          'timestep': None, 'barostat': False, 'temperature': None, 'friction': None, 
-                          'pressure': None, 'barostat_every': None, "stdout_every": None,
-                          'trajectory_every': None, 'trajectory_new_every': None, 'restart_every': None,
-                          'trajectory_atom_subset': None, 'report': True, 'trajectory': None}
-        self.variables_stage = {'name': None, 'temperature': None, 'pressure': None,
-                                'barostat_every': None, 'barostat': False, 'constraint': None,
-                                'constraint2': None, 'constraint3':None, 'minimization': False,
-                                'minimization_max_steps': None, 'minimization_tolerance': None,
-                                'reporters': False, 'steps': None, 'report_every': None }
+        self.md_input = {'topology': None,
+                         'positions': None,
+                         'forcefield': None,
+                         'charmm_parameters': None,
+                         'velocities': None,
+                         'box_vectors': None}
 
-    def parse(self):
+        self.md_output={ 'project_name': None,
+                          'restart': None,
+                          'trajectory_every': None,
+                          'outputpath': None,
+                          'report_every': None,
+                          'trajectory_every': None,
+                          'trajectory_new_every': None,
+                          'restart_every': None,
+                          'trajectory_atom_subset': None,
+                          'report': True,
+                          'trajectory': None}
 
-        for item in self.variables.keys():
-            self.variables[item] = getattr(self, item)
+        self.md_hardware={'platform':None,
+                          'precision':None}
 
-        try:
-            if all(v for v in self.variables.viewvalues()):  # Python2.7
-                return self.variables.values()
+        self.md_conditions={'timestep': None,
+                            'integrator': None,
+                            'barostat': False,
+                            'temperature': None,
+                            'friction': None,
+                            'pressure': None,
+                            'barostat_interval': None}
 
-        except AttributeError:
-            if all(v for v in self.variables.values()):  # Python 3
-                return self.variables.values()
-
-        self.stages()
-
-    def stages(self):
-        for name in self.gui.names:
-            for i, variable in enumerate(getattr(self.gui, 'stage_' + name)):
-                key = sorted(self.variables_stage.keys())
-                self.variables_stage[key[i]] = variable
-            setattr(self, 'variable_stage_' + name, self.variables_stage.copy())
-            print(getattr(self, 'variable_stage_' + name))
-            print('\n')
-
-
-                   
+        self.md_systemoptions ={ 'nonbondedMethod': None,
+                                 'nonbondedCutoff': None,
+                                 'ewaldErrorTolerance': None,
+                                 'constraints': None,
+                                 'rigidWater': False}
 
     @property
-    def path(self):
-        return self.gui.var__path.get()
+    def stages(self):
+        return self.gui.stages
 
-    @path.setter
-    def path(self, value):
+    @property
+    def project_name(self):
+        return  self.gui.var_output_projectname.get()
+
+    @property
+    def topology(self):
+        if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
+            if self.gui.ui_chimera_models.getvalue():
+                model = self.gui.ui_chimera_models.getvalue()
+                model_name = os.path.splitext(model.name)[0]
+                sanitized_path = str(os.path.join(self.gui.var_output.get(), model_name + '_fixed.pdb'))
+                if os.path.isfile(sanitized_path):
+                    return sanitized_path
+                else:
+                    return model.openedAs[0]
+
+        elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
+                return self.gui.var_path.get()
+
+    @topology.setter
+    def topology(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var__path.set(value)
+        self.gui.var_path.set(value)
 
     @property
     def positions(self):
-        return self.gui.var_positions.get()
+        if self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 0:
+            return self.topology
+        elif self.gui.ui_input_note.index(self.gui.ui_input_note.select()) == 1:
+            return self.gui.var_positions.get()
 
     @positions.setter
     def positions(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var_positions(value)
+        self.gui.var_positions.set(value)
 
     @property
     def forcefield(self):
-        forcefields = [os.path.join(os.path.dirname(os.path.realpath(self.gui.var_forcefield.get(
-        )+'.xml')), self.gui.var_forcefield.get()+'.xml'), self.gui.var_external_forc.get()]
-        return forcefields
-    """No funciona real path"""
+        return [self.gui.var_forcefield.get() + '.xml', ] + self.gui.additional_force
 
-    """@path.setter
-    def path(self, value):
-        for f in forcefields:
-            if not os.path.isfile(value):
-                raise ValueError('Cannot access file {}'.format(value))
-            setattr(self, .forcefield,value)"""
+    @forcefield.setter
+    def forcefield(self, value):
+        self.gui.additional_force.set(value)
+        self.gui.var_forcefield.set(value)
 
     @property
     def charmm_parameters(self):
@@ -146,65 +180,41 @@ class Model(object):
         self.gui.var_parametrize_forc.set(value)
 
     @property
-    def vel(self):
+    def velocities(self):
         return self.gui.var_input_vel.get()
 
-    @vel.setter
-    def vel(self, value):
+    @velocities.setter
+    def velocities(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
         self.gui.var_input_vel.set(value)
 
     @property
-    def box(self):
+    def box_vectors(self):
         return self.gui.var_input_box.get()
 
-    @box.setter
-    def box(self, value):
+    @box_vectors.setter
+    def box_vectors(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
         self.gui.var_input_box.set(value)
 
     @property
     def restart(self):
-        return self.gui.var_input_checkpoint.get()
+        return self.gui.var_output_restart.get()
 
     @restart.setter
     def restart(self, value):
         if not os.path.isfile(value):
             raise ValueError('Cannot access file {}'.format(value))
-        self.gui.var_input_checkpoint.set(value)
+        self.gui.var_output_restart.set(value)
 
     @property
-    def stdout(self):
-        return (self.gui.var_output.get() + '/stdout')
-
-    @stdout.setter
-    def stdout(self, value):
-        self.gui.var_output.set(value)
-
-    @property
-    def mdtraj(self):
-        return (self.gui.var_output.get() + '/mdtraj')
-
-    @mdtraj.setter
-    def mdtraj(self, value):
-        self.gui.var_output.set(value)
-
-    @property
-    def trajectory_every(self):
-        return self.gui.var_output_interval.get()
-
-    @trajectory_every.setter
-    def trajectory_every(self, value):
-        self.gui.var_output_interval.set(value)
-
-    @property
-    def output(self):
+    def outputpath(self):
         return self.gui.var_output.get()
 
-    @output.setter
-    def output(self, value):
+    @outputpath.setter
+    def outputpath(self, value):
         self.gui.var_output.set(value)
 
     @property
@@ -214,7 +224,6 @@ class Model(object):
     @integrator.setter
     def integrator(self, value):
         self.gui.var_integrator.set(value)
-
 
     @property
     def nonbondedMethod(self):
@@ -240,15 +249,13 @@ class Model(object):
     def ewaldErrorTolerance(self, value):
         self.gui.var_advopt_edwalderr.set(value)
 
-
     @property
     def rigidWater(self):
         return self.gui.var_advopt_rigwat.get()
 
     @rigidWater.setter
     def rigidWater(self, value):
-        self.gui.var_advopt_rigwat.set(value) 
-
+        self.gui.var_advopt_rigwat.set(value)
 
     @property
     def constraints(self):
@@ -260,21 +267,22 @@ class Model(object):
 
     @property
     def platform(self):
-        return self.gui.var_advopt_hardware.get()
+        value = self.gui.var_advopt_hardware.get() 
+        if value.lower() != 'auto':
+            return value
 
     @platform.setter
     def platform(self, value):
         self.gui.var_advopt_hardware.set(value)
 
-
     @property
     def precision(self):
-        return self.gui.var_advopt_precision.get()
+        if self.platform:
+            return self.gui.var_advopt_precision.get()
 
     @precision.setter
     def precision(self, value):
         self.gui.var_advopt_precision.set(value)
-
 
     @property
     def timestep(self):
@@ -314,44 +322,46 @@ class Model(object):
 
     @pressure.setter
     def pressure(self, value):
-        self.gui.self.var_advopt_pressure.set(value)   
-
-
+        self.gui.self.var_advopt_pressure.set(value)
 
     @property
-    def barostat_every(self):
+    def barostat_interval(self):
         return self.gui.var_advopt_pressure_steps.get()
 
-    @barostat_every.setter
-    def barostat_every(self, value):
-        self.gui.self.var_advopt_pressure_steps.set(value) 
+    @barostat_interval.setter
+    def barostat_interval(self, value):
+        self.gui.self.var_advopt_pressure_steps.set(value)
+
+    @property
+    def trajectory(self):
+        return self.gui.var_md_reporters.get()
+
+    @trajectory.setter
+    def trajectory(self, value):
+        self.gui.self.var_md_reporters.set(value)
 
 
     @property
     def trajectory_every(self):
-        return self.gui.var_output_traj_interval.get()
+        if self.trajectory != 'None':
+            return self.gui.var_output_traj_interval.get()
 
     @trajectory_every.setter
     def trajectory_every(self, value):
         self.gui.self.var_output_traj_interval.set(value)
 
-
     @property
-    def stdout_every(self):
-        return self.gui.var_output_stdout_interval.get()
-
-    @stdout_every.setter
-    def stdout_every(self, value):
-        self.gui.self.var_output_stdout_interval.set(value)
-
-    @property
-    def verbose(self):
+    def report(self):
         return self.gui.var_verbose.get()
 
-    @verbose.setter
-    def verbose(self, value):
-        self.gui.self.var_verbose.set(value)
+    @property
+    def report_every(self):
+        if self.report.lower()== 'true':
+            return self.gui.var_output_stdout_interval.get()
 
+    @report_every.setter
+    def report_every(self, value):
+        self.gui.self.var_output_stdout_interval.set(value)
 
     @property
     def trajectory_new_every(self):
@@ -370,67 +380,86 @@ class Model(object):
         self.gui.self.var_restart_every.set(value)
 
     @property
-    def trajectory(self):
-        return self.gui.var_md_reporters.get()
-
-    @trajectory.setter
-    def trajectory(self, value):
-        self.gui.self.var_md_reporters.set(value) 
-
-    @property
     def trajectory_atom_subset(self):
         return self.gui.var_traj_atoms.get()
 
     @trajectory_atom_subset.setter
     def trajectory_atom_subset(self, value):
-        self.gui.self.var_traj_atoms.set(value) 
-
-    @property
-    def report(self):
-        if self.gui.var_md_reporters.get() == 'None':
-            return False
-        else:
-            return True   
+        self.gui.self.var_traj_atoms.set(value)
 
 
 
+    def parse(self):
+        self.reset_variables()
+        self.retrieve_settings()
+        self.retrieve_stages()    
 
+    def retrieve_settings(self):
+        dictionaries=[self.md_input, self.md_output, self.md_hardware,
+                      self.md_conditions, self.md_systemoptions]
+        for dictionary in dictionaries:
+            for key, value in dictionary.items():
+                # Some combobox just returns boolean as a string so we fix that
+                value_to_store = getattr(self, key)
+                if value_to_store == 'True':
+                    value_to_store = True
+                elif value_to_store == 'False':
+                    value_to_store = False
+                if isinstance(value_to_store, bool):
+                    dictionary[key] = value_to_store
+                elif value_to_store == 'None':
+                    del dictionary[key]
+                elif value_to_store:
+                    dictionary[key] = value_to_store
+                else:
+                    del dictionary[key]
 
+    def retrieve_stages(self):
+        for dictionary in self.stages:
+            for key, value in dictionary.items():
+                if value == 'True':
+                    value = True
+                    dictionary[key] = value
+                elif value == 'False':
+                    value = False
+                    dictionary[key] = value
+                elif value in [None,'None']:
+                    del dictionary[key]
+        self.stages
 
+    def reset_variables(self):
+        self.md_input = {'topology': None,
+                         'positions': None,
+                         'forcefield': None,
+                         'charmm_parameters': None,
+                         'velocities': None,
+                         'box_vectors': None}
 
+        self.md_output = {'project_name': None,
+                          'restart': None,
+                          'trajectory_every': None,
+                          'outputpath': None,
+                          'report_every': None,
+                          'trajectory_every': None,
+                          'trajectory_new_every': None,
+                          'restart_every': None,
+                          'trajectory_atom_subset': None,
+                          'report': True,
+                          'trajectory': None}
 
+        self.md_hardware = {'platform': None,
+                            'precision': None}
 
-    """
-    Stages
+        self.md_conditions = {'timestep': None,
+                              'integrator': None,
+                              'barostat': False,
+                              'temperature': None,
+                              'friction': None,
+                              'pressure': None,
+                              'barostat_interval': None}
 
-    @property
-    def minimization(self):
-        return self.gui.stage_minimiz.get()
-
-    @minimization.setter
-    def minimization(self, value):
-        self.gui.stage_minimiz.set(value)
-
-    @property
-    def tolerance(self):
-        return self.gui.stage_minimiz_tolerance.get()
-
-    @tolerance.setter
-    def tolerance(self, value):
-        self.gui.stage_minimiz_tolerance.set(value)
-
-    @property
-    def max_iterations(self):
-        return self.gui.stage_minimiz_maxsteps.get()
-
-    @max_iterations.setter
-    def max_iterations(self, value):
-        self.gui.stage_minimiz_maxsteps.set(value)    """
-
-
-@contextlib.contextmanager
-def ignored(*exceptions):
-    try:
-        yield
-    except exceptions:
-        pass
+        self.md_systemoptions = {'nonbondedMethod': None,
+                                 'nonbondedCutoff': None,
+                                 'ewaldErrorTolerance': None,
+                                 'constraints': None,
+                                 'rigidWater': False}
