@@ -888,14 +888,16 @@ class OpenMMGUIDialog(PlumeBaseDialog):
         window.geometry("+%d+%d" % (x, y))
         window.deiconify()
 
+    def Run(self):
+        pass
+
     def Close(self):
         """
         Default! Triggered action if you click on the Close button
         """
         global ui
         ui = None
-        ModelessDialog.Close(self)
-        self.destroy()
+        super(OpenMMGUIDialog, self).Close()
 
     def set_stage_variables(self):
         self.var_stage_temp.set(300)
