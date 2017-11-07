@@ -29,11 +29,11 @@ class Controller(object):
         sys.stdout.write('MD succesfully finished')
 
     def saveinput(self, path=None):
+        self.model.parse()
         if path is None:
             path = asksaveasfilename(defaultextension='.yaml', filetypes=[('YAML', '*.yaml')])
         if not path:
             return
-        self.model.parse()
         self.write(path)
         self.gui.status('Written to {}'.format(path), color='blue', blankAfter=4)
 
