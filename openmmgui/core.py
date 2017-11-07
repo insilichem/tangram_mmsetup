@@ -6,10 +6,18 @@ from __future__ import print_function, division
 # Python
 import os
 import sys
+from threading import Thread
+from Queue import LifoQueue, Empty
 import yaml
-import subprocess
+from chimera.SubprocessMonitor import Popen, PIPE, SubprocessTask
+from chimera.tasks import Task
 from tkFileDialog import asksaveasfilename
 import chimera
+
+
+def enqueue_output(out, queue):
+    for line in iter(out.readline, b''):
+        queue.put(line)
 
 
 class Controller(object):
@@ -18,6 +26,11 @@ class Controller(object):
         self.gui = gui
         self.model = model
         self.set_mvc()
+        self.task = None
+        self.subprocess = None
+        self.queue = None
+        self.progress = None
+        self._last_progress = 0
 
     def set_mvc(self):
         self.gui.buttonWidgets['Save Input'].configure(command=self.saveinput)
@@ -25,8 +38,46 @@ class Controller(object):
 
     def run(self):
         self.saveinput()
-        subprocess.call(['ommprotocol', self.filename])
-        sys.stdout.write('MD succesfully finished')
+        self.task = Task("OMMProtocol for {}".format(self.filename), cancelCB=self._clear_cb)
+        self.subprocess = Popen(['ommprotocol', self.filename], stdout=PIPE, stderr=PIPE,
+                                progressCB=self._progress_cb, universal_newlines=True,
+                                bufsize=1)
+        self.progress = SubprocessTask("OMMProtocol", self.subprocess,
+                                       task=self.task, afterCB=self._after_cb)
+        self.task.updateStatus("Running OMMProtocol")
+        self.queue = LifoQueue()
+        thread = Thread(target=enqueue_output, args=(self.subprocess.stdout, self.queue))
+        thread.daemon = True  # thread dies with the program
+        thread.start()
+
+    def _clear_cb(self, *args):
+        self.task.finished()
+        self.task, self.subprocess, self.queue, self.progress = None, None, None, None
+
+    def _after_cb(self, aborted):
+        if aborted:
+            self.task.terminate()
+            self._clear_cb()
+            return
+        if self.subprocess.returncode:
+            last = self.subprocess.stderr.readlines()[-1]
+            chimera.statusline.show_message(last)
+            self.task.updateStatus("OMMProtocol calculation failed! Reason: {}".format(last))
+            self._clear_cb()
+            return
+        self.task.finished()
+        chimera.statusline.show_message('Yay! MD Done!')
+
+    def _progress_cb(self, process):
+        try:
+            line = self.queue.get_nowait()
+        except Empty:
+            pass
+        else:
+            print(line)
+            if '%' in line:
+                self._last_progress = float(line.split('%')[0].split('(')[-1])/100.0
+        return self._last_progress
 
     def saveinput(self, path=None):
         self.model.parse()
