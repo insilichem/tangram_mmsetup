@@ -172,34 +172,36 @@ class Model(object):
                          'box_vectors': None,
                          'checkpoint': None}
 
-        self.md_output={'project_name': None,
-                        'restart': None,
-                        'trajectory_every': None,
-                        'outputpath': None,
-                        'report_every': None,
-                        'trajectory_every': None,
-                        'trajectory_new_every': None,
-                        'restart_every': None,
-                        'trajectory_atom_subset': None,
-                        'report': True,
-                        'trajectory': None}
+        self.md_output = {'project_name': None,
+                          'restart': None,
+                          'trajectory_every': None,
+                          'outputpath': None,
+                          'report_every': None,
+                          'trajectory_every': None,
+                          'trajectory_new_every': None,
+                          'restart_every': None,
+                          'trajectory_atom_subset': None,
+                          'report': True,
+                          'trajectory': None,
+                          'attempt_rescue': False,
+                          'verbose': False}
 
-        self.md_hardware={'platform':None,
-                          'precision': None}
+        self.md_hardware = {'platform':None,
+                            'precision': None}
 
-        self.md_conditions={'timestep': None,
-                            'integrator': None,
-                            'barostat': False,
-                            'temperature': None,
-                            'friction': None,
-                            'pressure': None,
-                            'barostat_interval': None}
+        self.md_conditions = {'timestep': None,
+                              'integrator': None,
+                              'barostat': False,
+                              'temperature': None,
+                              'friction': None,
+                              'pressure': None,
+                              'barostat_interval': None}
 
-        self.md_systemoptions ={'nonbondedMethod': None,
-                                'nonbondedCutoff': None,
-                                'ewaldErrorTolerance': None,
-                                'constraints': None,
-                                'rigidWater': False}
+        self.md_systemoptions = {'nonbondedMethod': None,
+                                 'nonbondedCutoff': None,
+                                 'ewaldErrorTolerance': None,
+                                 'constraints': None,
+                                 'rigidWater': False}
 
     @property
     def stages(self):
@@ -448,7 +450,7 @@ class Model(object):
 
     @property
     def report_every(self):
-        if self.report.lower()== 'true':
+        if self.report.lower() == 'true':
             return self.gui.var_output_stdout_interval.get()
 
     @report_every.setter
@@ -544,7 +546,9 @@ class Model(object):
                           'restart_every': None,
                           'trajectory_atom_subset': None,
                           'report': True,
-                          'trajectory': None}
+                          'trajectory': None,
+                          'attempt_rescue': False,
+                          'verbose': False}
 
         self.md_hardware = {'platform': None,
                             'precision': None}
