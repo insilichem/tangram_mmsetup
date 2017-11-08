@@ -49,10 +49,11 @@ class Controller(object):
         self.gui.buttonWidgets['Run'].configure(command=self.run)
 
     def run(self):
+        if not self.saveinput():
+            return
         env = os.environ.copy()
         env['OMMPROTOCOL_SLAVE'] = '1'
         env['PYTHONIOENCODING'] = 'latin-1'
-        self.saveinput()
         self.task = Task("OMMProtocol for {}".format(self.filename), cancelCB=self._clear_cb,
                          statusFreq=((1,),1))
         self.subprocess = Popen(['ommprotocol', self.filename], stdout=PIPE, stderr=PIPE,
@@ -116,11 +117,13 @@ class Controller(object):
     def saveinput(self, path=None):
         self.model.parse()
         if path is None:
-            path = asksaveasfilename(defaultextension='.yaml', filetypes=[('YAML', '*.yaml')])
+            path = asksaveasfilename(parent=self.gui.canvas, defaultextension='.yaml',
+                                     filetypes=[('YAML', '*.yaml')])
         if not path:
             return
         self.write(path)
         self.gui.status('Written to {}'.format(path), color='blue', blankAfter=4)
+        return True
 
     def write(self, output):
         # Write input
