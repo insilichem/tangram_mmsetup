@@ -42,6 +42,7 @@ class Controller(object):
         self.progress = None
         self.ensemble = None
         self.movie_dialog = None
+        self.molecule = None
         self._last_steps = 0
 
     def set_mvc(self):
@@ -66,29 +67,29 @@ class Controller(object):
         thread = Thread(target=enqueue_output, args=(self.subprocess.stdout, self.queue))
         thread.daemon = True  # thread dies with the program
         thread.start()
-        m = self.gui.ui_chimera_models.getvalue()
         self.ensemble = _TrajProxy()
-        self.ensemble.molecule = m
-        self.ensemble.name = 'Trajectory for {}'.format(m.name)
-        self.ensemble.startFrame = 1
-        self.ensemble.endFrame = 1
+        self.molecule = self.ensemble.molecule = self.gui.ui_chimera_models.getvalue()
+        self.ensemble.name = 'Trajectory for {}'.format(self.molecule.name)
+        self.ensemble.startFrame = self.ensemble.endFrame = 1
         self.movie_dialog = MovieDialog(self.ensemble, externalEnsemble=True)
+        self.gui.Close()
 
     def _clear_cb(self, *args):
         self.task.finished()
-        self.task, self.subprocess, self.queue, self.progress = None, None, None, None
+        self.task, self.subprocess, self.queue, self.progress, self.molecule = [None] * 5
+        if self.movie_dialog is not None:
+            self.movie_dialog.Close()
+            self.movie_dialog = None
 
     def _after_cb(self, aborted):
         if aborted:
-            self.task.finished()
             self._clear_cb()
             return
         if self.subprocess.returncode:
             last = self.subprocess.stderr.readlines()[-1]
-            chimera.statusline.show_message(last)
-            self.task.updateStatus("OMMProtocol calculation failed! Reason: {}".format(last))
+            msg = "OMMProtocol calculation failed! Reason: {}".format(last)
             self._clear_cb()
-            return
+            raise chimera.UserError(msg)
         self.task.finished()
         chimera.statusline.show_message('Yay! MD Done!')
 
@@ -96,23 +97,24 @@ class Controller(object):
         try:
             chunk = self.queue.get_nowait()
         except Empty:
-            return self._last_steps / self.model.total_steps 
-        
+            return self._last_steps / self.model.total_steps
+
         steps, positions = pickle.loads(chunk)
         if steps == self._last_steps:
             self._last_steps / self.model.total_steps
 
-        self._last_steps = steps        
+        self._last_steps = steps
+
+        # Update positions in MD Movie Dialog
         coordinates = np.array(positions) * 10.
-        molecule = self.gui.ui_chimera_models.getvalue()
-        coordsets_so_far = len(molecule.coordSets)
-        cs = molecule.newCoordSet(coordsets_so_far)
+        coordsets_so_far = len(self.molecule.coordSets)
+        cs = self.molecule.newCoordSet(coordsets_so_far)
         cs.load(coordinates)
         self.ensemble.endFrame = self.movie_dialog.endFrame = coordsets_so_far + 1
         self.movie_dialog.moreFramesUpdate('', [], self.movie_dialog.endFrame)
         self.movie_dialog.plusCallback()
 
-        return self._last_steps / self.model.total_steps 
+        return self._last_steps / self.model.total_steps
 
     def saveinput(self, path=None):
         self.model.parse()
