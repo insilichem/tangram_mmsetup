@@ -801,10 +801,11 @@ class OpenMMGUIDialog(PlumeBaseDialog):
         #Getting molecule attributes
         model = self.ui_chimera_models.getvalue()
         modelfile_path = getattr(model, 'openedAs', (model.name,))[0]
-        output_file = '{0[0]}{1}{0[1]}'.format(os.path.splitext(modelfile_path), '_fixed')
+        basename, ext = os.path.splitext(modelfile_path)
+        output_file = '{0}{1}{2}'.format(basename, '_fixed', ext or '.pdb')
         chimera.pdbWrite([model], chimera.Xform(), output_file)
         self.fix_pdb(output_file, out=output_file)
-        m = chimera.openModels.open(output_file, sameAs=model, temporary=True)[0]
+        m = chimera.openModels.open(output_file, sameAs=model)[0]
         m.name = model.name + ' - Fixed'
         self.ui_chimera_models.selection_clear()
         self.ui_chimera_models.selection_set(chimera.openModels.list().index(m))

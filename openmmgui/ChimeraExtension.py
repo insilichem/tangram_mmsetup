@@ -5,16 +5,6 @@
 from __future__ import print_function, division
 import chimera.extension
 
-"""
-This is the file that Chimera searches for to load new extensions
-at runtime. Normally, you will only need to edit:
-
-- the returned strings in name() and description() methods
-
-- the name of the class in both the class statement and the
-  registerExtension() call at the end of the file.
-
-"""
 
 # Edit the name
 class OpenMMExtension(chimera.extension.EMO):

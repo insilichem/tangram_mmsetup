@@ -8,16 +8,26 @@ import os
 import sys
 from threading import Thread
 from Queue import LifoQueue, Empty
+from tkFileDialog import asksaveasfilename
+import pickle
+import numpy as np
 import yaml
+import chimera
 from chimera.SubprocessMonitor import Popen, PIPE, SubprocessTask
 from chimera.tasks import Task
-from tkFileDialog import asksaveasfilename
-import chimera
+from Movie.gui import MovieDialog
 
 
 def enqueue_output(out, queue):
-    for line in iter(out.readline, b''):
-        queue.put(line)
+    while True:
+        line = out.readline()
+        if line == b'STARTOFCHUNK\n':
+            lines = []
+            for line in iter(out.readline, b'ENDOFCHUNK\n'):
+                lines.append(line)
+            queue.put(b''.join(lines))
+        elif line == b'':
+            break
 
 
 class Controller(object):
@@ -30,18 +40,24 @@ class Controller(object):
         self.subprocess = None
         self.queue = None
         self.progress = None
-        self._last_progress = 0
+        self.ensemble = None
+        self.movie_dialog = None
+        self._last_steps = 0
 
     def set_mvc(self):
         self.gui.buttonWidgets['Save Input'].configure(command=self.saveinput)
         self.gui.buttonWidgets['Run'].configure(command=self.run)
 
     def run(self):
+        env = os.environ.copy()
+        env['OMMPROTOCOL_SLAVE'] = '1'
+        env['PYTHONIOENCODING'] = 'latin-1'
         self.saveinput()
-        self.task = Task("OMMProtocol for {}".format(self.filename), cancelCB=self._clear_cb)
+        self.task = Task("OMMProtocol for {}".format(self.filename), cancelCB=self._clear_cb,
+                         statusFreq=((1,),1))
         self.subprocess = Popen(['ommprotocol', self.filename], stdout=PIPE, stderr=PIPE,
-                                progressCB=self._progress_cb, universal_newlines=True,
-                                bufsize=1)
+                                progressCB=self._progress_cb, #universal_newlines=True,
+                                bufsize=1, env=env)
         self.progress = SubprocessTask("OMMProtocol", self.subprocess,
                                        task=self.task, afterCB=self._after_cb)
         self.task.updateStatus("Running OMMProtocol")
@@ -49,6 +65,13 @@ class Controller(object):
         thread = Thread(target=enqueue_output, args=(self.subprocess.stdout, self.queue))
         thread.daemon = True  # thread dies with the program
         thread.start()
+        m = self.gui.ui_chimera_models.getvalue()
+        self.ensemble = _TrajProxy()
+        self.ensemble.molecule = m
+        self.ensemble.name = 'Trajectory for {}'.format(m.name)
+        self.ensemble.startFrame = 1
+        self.ensemble.endFrame = 1
+        self.movie_dialog = MovieDialog(self.ensemble, externalEnsemble=True)
 
     def _clear_cb(self, *args):
         self.task.finished()
@@ -56,7 +79,7 @@ class Controller(object):
 
     def _after_cb(self, aborted):
         if aborted:
-            self.task.terminate()
+            self.task.finished()
             self._clear_cb()
             return
         if self.subprocess.returncode:
@@ -70,14 +93,25 @@ class Controller(object):
 
     def _progress_cb(self, process):
         try:
-            line = self.queue.get_nowait()
+            chunk = self.queue.get_nowait()
         except Empty:
-            pass
-        else:
-            print(line)
-            if '%' in line:
-                self._last_progress = float(line.split('%')[0].split('(')[-1])/100.0
-        return self._last_progress
+            return self._last_steps / self.model.total_steps 
+        
+        steps, positions = pickle.loads(chunk)
+        if steps == self._last_steps:
+            self._last_steps / self.model.total_steps
+
+        self._last_steps = steps        
+        coordinates = np.array(positions) * 10.
+        molecule = self.gui.ui_chimera_models.getvalue()
+        coordsets_so_far = len(molecule.coordSets)
+        cs = molecule.newCoordSet(coordsets_so_far)
+        cs.load(coordinates)
+        self.ensemble.endFrame = self.movie_dialog.endFrame = coordsets_so_far + 1
+        self.movie_dialog.moreFramesUpdate('', [], self.movie_dialog.endFrame)
+        self.movie_dialog.plusCallback()
+
+        return self._last_steps / self.model.total_steps 
 
     def saveinput(self, path=None):
         self.model.parse()
@@ -111,10 +145,20 @@ class Controller(object):
                 f.write('\n')
 
 
+class _TrajProxy:
+
+    def __len__(self):
+        return len(self.molecule.coordSets)
+
+    def __getitem__(self, key):
+        return None
+
+
 class Model(object):
 
     def __init__(self, gui, *args, **kwargs):
         self.gui = gui
+        self.total_steps = None
         self.md_input = {'topology': None,
                          'positions': None,
                          'forcefield': None,
@@ -384,7 +428,6 @@ class Model(object):
     def trajectory(self, value):
         self.gui.self.var_md_reporters.set(value)
 
-
     @property
     def trajectory_every(self):
         if self.trajectory != 'None':
@@ -463,7 +506,9 @@ class Model(object):
                     del dictionary[key]
 
     def retrieve_stages(self):
+        steps = 0
         for dictionary in self.stages:
+            steps += int(dictionary['steps'])
             for key, value in dictionary.items():
                 if value == 'True':
                     value = True
@@ -473,6 +518,7 @@ class Model(object):
                     dictionary[key] = value
                 elif value in [None,'None']:
                     del dictionary[key]
+        self.total_steps = steps
 
     def reset_variables(self):
         self.md_input = {'topology': None,
