@@ -17,7 +17,7 @@ from chimera.widgets import MoleculeScrolledListBox
 from simtk.openmm.app import PDBFile
 from pdbfixer import PDBFixer
 # Own
-from libplume.ui import PlumeBaseDialog
+from libtangram.ui import TangramBaseDialog
 from core import Controller, Model
 
 
@@ -38,7 +38,7 @@ def showUI(callback=None, *args, **kwargs):
         ui.addCallback(callback)
 
 
-class OpenMMGUIDialog(PlumeBaseDialog):
+class OpenMMGUIDialog(TangramBaseDialog):
 
     """
     To display a new dialog on the interface, you will normally inherit from
@@ -50,14 +50,14 @@ class OpenMMGUIDialog(PlumeBaseDialog):
 
     buttons = ('Save Input', 'Run', 'Close')
     default = None
-    help = "https://github.com/insilichem/plume_openmmgui"
+    help = "https://github.com/insilichem/tangram_openmmgui"
     VERSION = '0.0.1'
-    VERSION_URL = "https://api.github.com/repos/insilichem/plume_openmmgui/releases/latest"
+    VERSION_URL = "https://api.github.com/repos/insilichem/tangram_openmmgui/releases/latest"
 
     def __init__(self, *args, **kwargs):
 
         # GUI init
-        self.title = 'Plume OpenMM GUI'
+        self.title = 'Tangram OpenMM GUI'
 
         # OpenMM variables
         self.entries = ('output', 'forcefield', 'integrator',

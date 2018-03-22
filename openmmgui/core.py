@@ -183,8 +183,9 @@ class Model(object):
                           'trajectory_atom_subset': None,
                           'report': True,
                           'trajectory': None,
-                          'attempt_rescue': False,
-                          'verbose': False}
+                          # 'attempt_rescue': False,
+                          # 'verbose': False
+                          }
 
         self.md_hardware = {'platform':None,
                             'precision': None}
@@ -547,8 +548,9 @@ class Model(object):
                           'trajectory_atom_subset': None,
                           'report': True,
                           'trajectory': None,
-                          'attempt_rescue': False,
-                          'verbose': False}
+                          #'attempt_rescue': False,
+                          #'verbose': False
+                          }
 
         self.md_hardware = {'platform': None,
                             'precision': None}

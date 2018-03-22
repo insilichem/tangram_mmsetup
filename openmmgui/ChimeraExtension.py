@@ -10,8 +10,8 @@ import chimera.extension
 class OpenMMExtension(chimera.extension.EMO):
 
     def name(self):
-        # Always prefix with 'Plume'
-        return 'Plume OpenMM GUI'
+        # Always prefix with 'Tangram'
+        return 'Tangram OpenMM GUI'
 
     def description(self):
         # Something short but meaningful

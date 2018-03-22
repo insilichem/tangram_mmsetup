@@ -1,10 +1,10 @@
-# Plume OpenMM GUI
+# Tangram OpenMM GUI
 
 A graphical interface to run OpenMM simulations in UCSF Chimera.
 
 # Dependencies
 
-This extension relies on [ommprotocol](https://github.com/insilichem/ommprotocol), which in turn depends on OpenMM, PDBFixer, MDTraj, ParmEd, OpenMolTools and some more. All of these requirements should be handled by the main [Plume installer](https://github.com/insilichem/plume).
+This extension relies on [ommprotocol](https://github.com/insilichem/ommprotocol), which in turn depends on OpenMM, PDBFixer, MDTraj, ParmEd, OpenMolTools and some more. All of these requirements should be handled by the main [Tangram installer](https://github.com/insilichem/tangram).
 
 # Quick Usage
 
