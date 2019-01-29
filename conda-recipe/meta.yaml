@@ -1,0 +1,38 @@
+# Build with:
+# conda build --python=2.7 -c insilichem -c omnia .
+
+{% set name = "tangram_mmsetup" %}
+
+
+package:
+  name: {{ name|lower }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG', 'v')[1:] }}
+
+source:
+  url: ../
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . --no-deps -vv"
+
+requirements:
+  host:
+    - python
+  run:
+    - python
+    - pychimera     >=0.2.6
+    - libtangram
+    - ommprotocol
+
+about:
+  home: http://github.com/insilichem/tangram_mmsetup
+  license: MIT
+  license_family: MIT
+  license_file: null
+  summary: 'Setup MD calculations with OpenMM and ommprotocol'
+  description: |
+    A graphical interface to run OpenMM simulations in UCSF Chimera.
+  doc_url: http://tangram-suite.readthedocs.io/en/latest/tangram_mmsetup.html
+  dev_url: https://github.com/insilichem/tangram_mmsetup
+
+
