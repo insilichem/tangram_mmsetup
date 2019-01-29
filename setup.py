@@ -20,9 +20,9 @@ def read(*filenames, **kwargs):
 long_description = read('README.md')
 
 setup(
-    name='tangram_openmmgui',
+    name='tangram_mmsetup',
     version='0.0.1',
-    url='https://github.com/insilichem/tangram_openmmgui',
+    url='https://github.com/insilichem/tangram_mmsetup',
     author='Jaime Rodríguez-Guerra',
     author_email='jaime.rogue@gmail.com',
     description=long_description,

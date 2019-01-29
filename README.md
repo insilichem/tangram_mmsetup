@@ -1,4 +1,4 @@
-# Tangram OpenMM GUI
+# Tangram MMSetup
 
 A graphical interface to run OpenMM simulations in UCSF Chimera.
 

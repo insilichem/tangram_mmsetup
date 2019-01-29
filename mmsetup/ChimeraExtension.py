@@ -11,7 +11,7 @@ class OpenMMExtension(chimera.extension.EMO):
 
     def name(self):
         # Always prefix with 'Tangram'
-        return 'Tangram OpenMM GUI'
+        return 'Tangram MMSetup'
 
     def description(self):
         # Something short but meaningful

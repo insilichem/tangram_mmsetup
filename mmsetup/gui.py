@@ -30,7 +30,7 @@ def showUI(callback=None, *args, **kwargs):
         tk.Tk().withdraw()
     global ui
     if not ui:  # Edit this to reflect the name of the class!
-        ui = OpenMMGUIDialog(*args, **kwargs)
+        ui = MMSetupDialog(*args, **kwargs)
     model = Model(gui=ui)
     controller = Controller(gui=ui, model=model)
     ui.enter()
@@ -38,7 +38,7 @@ def showUI(callback=None, *args, **kwargs):
         ui.addCallback(callback)
 
 
-class OpenMMGUIDialog(TangramBaseDialog):
+class MMSetupDialog(TangramBaseDialog):
 
     """
     To display a new dialog on the interface, you will normally inherit from
@@ -50,14 +50,14 @@ class OpenMMGUIDialog(TangramBaseDialog):
 
     buttons = ('Save Input', 'Run', 'Close')
     default = None
-    help = "https://github.com/insilichem/tangram_openmmgui"
+    help = "https://github.com/insilichem/tangram_mmsetup"
     VERSION = '0.0.1'
-    VERSION_URL = "https://api.github.com/repos/insilichem/tangram_openmmgui/releases/latest"
+    VERSION_URL = "https://api.github.com/repos/insilichem/tangram_mmsetup/releases/latest"
 
     def __init__(self, *args, **kwargs):
 
         # GUI init
-        self.title = 'Tangram OpenMM GUI'
+        self.title = 'Tangram MMSetup'
 
         # OpenMM variables
         self.entries = ('output', 'forcefield', 'integrator',
@@ -141,7 +141,7 @@ class OpenMMGUIDialog(TangramBaseDialog):
         self.style_option = {'padx': 10, 'pady': 10}
 
         # Fire up
-        super(OpenMMGUIDialog, self).__init__(*args, **kwargs)
+        super(MMSetupDialog, self).__init__(*args, **kwargs)
 
     def fill_in_ui(self, parent):
         """
@@ -898,7 +898,7 @@ class OpenMMGUIDialog(TangramBaseDialog):
         """
         global ui
         ui = None
-        super(OpenMMGUIDialog, self).Close()
+        super(MMSetupDialog, self).Close()
 
     def set_stage_variables(self):
         self.var_stage_temp.set(300)
