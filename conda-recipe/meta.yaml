@@ -23,6 +23,7 @@ requirements:
     - pychimera     >=0.2.6
     - libtangram
     - ommprotocol
+    - pdbfixer
 
 about:
   home: http://github.com/insilichem/tangram_mmsetup
